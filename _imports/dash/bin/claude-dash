@@ -1,0 +1,241 @@
+#!/usr/bin/env bash
+# claude-dash — start/stop/status the Claude Code session dashboard.
+#
+# Runs `uv run claude-dash-server` from the project repo. Override the repo
+# path with CLAUDE_DASH_REPO. Port defaults to 8765, override with
+# CLAUDE_DASH_PORT.
+
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  TARGET="$(readlink "$SOURCE")"
+  [[ "$TARGET" = /* ]] || TARGET="$(cd "$(dirname "$SOURCE")" && pwd)/$TARGET"
+  SOURCE="$TARGET"
+done
+SELF="$(cd "$(dirname "$SOURCE")" && pwd)"
+DEFAULT_REPO="$(cd "$SELF/.." && pwd)"
+REPO_DIR="${CLAUDE_DASH_REPO:-$DEFAULT_REPO}"
+UV_BIN="${CLAUDE_DASH_UV:-/opt/homebrew/bin/uv}"
+CACHE_DIR="$HOME/.claude-dash"
+PID_FILE="$CACHE_DIR/claude-dash.pid"
+LOG_FILE="$CACHE_DIR/claude-dash.log"
+PORT="${CLAUDE_DASH_PORT:-8765}"
+URL="http://127.0.0.1:${PORT}/"
+LAUNCH_AGENT="$HOME/Library/LaunchAgents/com.nathanmauro.claude-dash.plist"
+LAUNCH_LABEL="com.nathanmauro.claude-dash"
+
+mkdir -p "$CACHE_DIR"
+
+launchd_pid() {
+  launchctl list 2>/dev/null | awk -v l="$LAUNCH_LABEL" '$3==l {print $1}' | grep -E '^[0-9]+$' || true
+}
+
+launchd_loaded() {
+  launchctl list 2>/dev/null | awk -v l="$LAUNCH_LABEL" '$3==l {found=1} END {exit !found}'
+}
+
+is_running() {
+  local lpid
+  lpid=$(launchd_pid)
+  if [[ -n "$lpid" ]]; then return 0; fi
+  [[ -f "$PID_FILE" ]] || return 1
+  local pid
+  pid=$(cat "$PID_FILE" 2>/dev/null || true)
+  [[ -n "$pid" ]] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+running_pid() {
+  local lpid
+  lpid=$(launchd_pid)
+  if [[ -n "$lpid" ]]; then echo "$lpid"; return; fi
+  cat "$PID_FILE" 2>/dev/null || true
+}
+
+cmd_run() {
+  cd "$REPO_DIR"
+  exec "$UV_BIN" run claude-dash-server "$@"
+}
+
+cmd_start() {
+  if launchd_loaded; then
+    local lpid
+    lpid=$(launchd_pid)
+    if [[ -n "$lpid" ]]; then
+      echo "claude-dash already running via LaunchAgent (pid $lpid) → $URL"
+    else
+      launchctl kickstart "gui/$(id -u)/$LAUNCH_LABEL" >/dev/null 2>&1 || true
+      sleep 0.5
+      lpid=$(launchd_pid)
+      echo "claude-dash started via LaunchAgent (pid ${lpid:-?}) → $URL"
+    fi
+    return 0
+  fi
+  if is_running; then
+    echo "claude-dash already running (pid $(cat "$PID_FILE")) → $URL"
+    return 0
+  fi
+  rm -f "$PID_FILE"
+  cd "$REPO_DIR"
+  nohup env CLAUDE_DASH_PORT="$PORT" "$UV_BIN" run claude-dash-server --no-open \
+    >>"$LOG_FILE" 2>&1 &
+  local pid=$!
+  echo "$pid" > "$PID_FILE"
+  disown "$pid" 2>/dev/null || true
+  sleep 0.5
+  if is_running; then
+    echo "claude-dash started (pid $pid) → $URL"
+  else
+    echo "claude-dash failed to start; tail $LOG_FILE"
+    return 1
+  fi
+}
+
+cmd_stop() {
+  if launchd_loaded; then
+    launchctl bootout "gui/$(id -u)/$LAUNCH_LABEL" 2>/dev/null || \
+      launchctl unload "$LAUNCH_AGENT" 2>/dev/null || true
+    echo "claude-dash LaunchAgent stopped (use 'claude-dash install' to re-enable auto-start)"
+    rm -f "$PID_FILE"
+    return 0
+  fi
+  if ! is_running; then
+    echo "claude-dash not running"
+    rm -f "$PID_FILE"
+    return 0
+  fi
+  local pid
+  pid=$(cat "$PID_FILE")
+  kill "$pid" 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.2
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    kill -9 "$pid" 2>/dev/null || true
+  fi
+  rm -f "$PID_FILE"
+  echo "claude-dash stopped"
+}
+
+cmd_status() {
+  if launchd_loaded; then
+    local lpid
+    lpid=$(launchd_pid)
+    if [[ -n "$lpid" ]]; then
+      echo "running via LaunchAgent (pid $lpid) → $URL"
+    else
+      echo "LaunchAgent loaded but not running → $URL"
+    fi
+    return 0
+  fi
+  if is_running; then
+    echo "running (pid $(cat "$PID_FILE")) → $URL"
+  else
+    echo "not running"
+    return 1
+  fi
+}
+
+cmd_restart() {
+  if launchd_loaded; then
+    launchctl kickstart -k "gui/$(id -u)/$LAUNCH_LABEL" >/dev/null 2>&1 || true
+    sleep 0.5
+    local lpid
+    lpid=$(launchd_pid)
+    echo "claude-dash restarted via LaunchAgent (pid ${lpid:-?}) → $URL"
+    return 0
+  fi
+  cmd_stop || true
+  cmd_start
+}
+
+cmd_logs() {
+  exec tail -F "$LOG_FILE"
+}
+
+cmd_open() {
+  open "$URL"
+}
+
+cmd_install() {
+  mkdir -p "$(dirname "$LAUNCH_AGENT")"
+  cat > "$LAUNCH_AGENT" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>${LAUNCH_LABEL}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>${UV_BIN}</string>
+    <string>run</string>
+    <string>claude-dash-server</string>
+    <string>--no-open</string>
+  </array>
+  <key>WorkingDirectory</key><string>${REPO_DIR}</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>CLAUDE_DASH_PORT</key><string>${PORT}</string>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>${LOG_FILE}</string>
+  <key>StandardErrorPath</key><string>${LOG_FILE}</string>
+  <key>ProcessType</key><string>Background</string>
+</dict>
+</plist>
+EOF
+  launchctl unload "$LAUNCH_AGENT" 2>/dev/null || true
+  cmd_stop >/dev/null 2>&1 || true
+  launchctl load "$LAUNCH_AGENT"
+  echo "installed → $LAUNCH_AGENT (auto-starts at login on $URL)"
+}
+
+cmd_uninstall() {
+  if [[ -f "$LAUNCH_AGENT" ]]; then
+    launchctl unload "$LAUNCH_AGENT" 2>/dev/null || true
+    rm -f "$LAUNCH_AGENT"
+    echo "uninstalled LaunchAgent"
+  else
+    echo "no LaunchAgent installed"
+  fi
+}
+
+usage() {
+  cat <<EOF
+usage: claude-dash <command>
+
+commands:
+  start          start in background, log to $LOG_FILE
+  stop           stop background instance
+  restart        stop + start
+  status         show whether running and the URL
+  run [args...]  run in foreground (uv run claude-dash-server)
+  logs           tail -F the log
+  open           open the dashboard in the browser
+  install        install + load a LaunchAgent (auto-start at login)
+  uninstall      unload + remove the LaunchAgent
+
+env:
+  CLAUDE_DASH_PORT   server port (default 8765)
+  CLAUDE_DASH_REPO   path to repo (default \$SELF/..)
+  CLAUDE_DASH_UV     path to uv binary (default /opt/homebrew/bin/uv)
+EOF
+}
+
+case "${1:-status}" in
+  start)     cmd_start ;;
+  stop)      cmd_stop ;;
+  restart)   cmd_restart ;;
+  status)    cmd_status ;;
+  run)       shift; cmd_run "$@" ;;
+  logs|tail) cmd_logs ;;
+  open)      cmd_open ;;
+  install)   cmd_install ;;
+  uninstall) cmd_uninstall ;;
+  -h|--help|help) usage ;;
+  *) usage; exit 2 ;;
+esac

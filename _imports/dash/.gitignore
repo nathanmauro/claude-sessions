@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+.idea/
+.playwright-mcp/
+web/node_modules/
+web/.vite/
+web/tsconfig.tsbuildinfo
