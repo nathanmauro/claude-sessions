@@ -1,15 +1,16 @@
-"""CLI for testing the pipes: list / running / open / focus / smart."""
+"""Unified CLI for claude-sessions: ls / running / open / focus / smart / menu / dash / index."""
 from __future__ import annotations
 
 import argparse
 import json
 import sys
 
-from claude_session_menu import launcher, processes, sessions
-from claude_session_menu.sessions import age_from_iso
+from ..core import sessions
+from ..core.sessions import age_from_iso
+from ..menu import launcher, processes
 
 
-def _cmd_list(args: argparse.Namespace) -> int:
+def _cmd_ls(args: argparse.Namespace) -> int:
     items = sessions.list_sessions()
     running_ids = {r.session_id for r in processes.list_running()}
     if args.json:
@@ -77,7 +78,6 @@ def _cmd_focus(args: argparse.Namespace) -> int:
 
 
 def _cmd_smart(args: argparse.Namespace) -> int:
-    """If session is running, focus; else open new."""
     sess = _find_session(args.session_id)
     if sess is None:
         print(f"no session matched: {args.session_id}", file=sys.stderr)
@@ -96,8 +96,44 @@ def _cmd_smart(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def _cmd_menu(_: argparse.Namespace) -> int:
+    try:
+        from ..menu.app import main as menu_main
+    except ImportError as e:
+        print(f"menu extra not installed: {e}", file=sys.stderr)
+        print("install with: pip install 'claude-sessions[menu]'", file=sys.stderr)
+        return 5
+    menu_main()
+    return 0
+
+
+def _cmd_dash(args: argparse.Namespace) -> int:
+    try:
+        import uvicorn
+        from ..dash.server import app
+        from ..core.config import HOST, PORT
+    except ImportError as e:
+        print(f"dash extra not installed: {e}", file=sys.stderr)
+        print("install with: pip install 'claude-sessions[dash]'", file=sys.stderr)
+        return 5
+    host = args.host or HOST
+    port = args.port or PORT
+    uvicorn.run(app, host=host, port=port, log_level="info")
+    return 0
+
+
+def _cmd_index(args: argparse.Namespace) -> int:
+    from ..core import db
+    from ..core.config import PROJECTS_DIR
+    changed = db.index_all(PROJECTS_DIR)
+    print(f"indexed: {len(changed)} sessions changed")
+    if args.verbose:
+        for sid in changed:
+            print(f"  {sid}")
+    return 0
+
+
 def _find_session(needle: str):
-    """Match by full session_id or unique prefix."""
     items = sessions.list_sessions()
     exact = [s for s in items if s.session_id == needle]
     if exact:
@@ -111,30 +147,45 @@ def _find_session(needle: str):
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="csm", description="Claude session menu CLI")
+    p = argparse.ArgumentParser(
+        prog="claude-sessions",
+        description="Browse, resume, and visualize Claude Code sessions.",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    p_list = sub.add_parser("list", help="list known sessions")
-    p_list.add_argument("--json", action="store_true")
-    p_list.add_argument("--limit", type=int, default=50)
-    p_list.set_defaults(func=_cmd_list)
+    p_ls = sub.add_parser("ls", help="list known sessions")
+    p_ls.add_argument("--json", action="store_true")
+    p_ls.add_argument("--limit", type=int, default=50)
+    p_ls.set_defaults(func=_cmd_ls)
 
     p_run = sub.add_parser("running", help="list active claude --resume processes")
     p_run.add_argument("--json", action="store_true")
     p_run.set_defaults(func=_cmd_running)
 
-    p_open = sub.add_parser("open", help="open session in new Ghostty window")
+    p_open = sub.add_parser("open", help="open session in new Ghostty/Terminal window")
     p_open.add_argument("session_id")
     p_open.add_argument("--prompt", default="")
     p_open.set_defaults(func=_cmd_open)
 
-    p_focus = sub.add_parser("focus", help="focus the terminal running this session")
+    p_focus = sub.add_parser("focus", help="focus terminal running this session")
     p_focus.add_argument("session_id")
     p_focus.set_defaults(func=_cmd_focus)
 
     p_smart = sub.add_parser("smart", help="focus if running, else open new")
     p_smart.add_argument("session_id")
     p_smart.set_defaults(func=_cmd_smart)
+
+    p_menu = sub.add_parser("menu", help="launch macOS menubar app (requires [menu] extra)")
+    p_menu.set_defaults(func=_cmd_menu)
+
+    p_dash = sub.add_parser("dash", help="launch web dashboard (requires [dash] extra)")
+    p_dash.add_argument("--host", default=None)
+    p_dash.add_argument("--port", type=int, default=None)
+    p_dash.set_defaults(func=_cmd_dash)
+
+    p_index = sub.add_parser("index", help="refresh SQLite session index")
+    p_index.add_argument("-v", "--verbose", action="store_true")
+    p_index.set_defaults(func=_cmd_index)
 
     args = p.parse_args(argv)
     return args.func(args)

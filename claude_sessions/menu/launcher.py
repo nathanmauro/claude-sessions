@@ -8,11 +8,11 @@ import subprocess
 from pathlib import Path
 
 GHOSTTY_APP = "/Applications/Ghostty.app"
-LOG_PATH = Path.home() / "Library" / "Logs" / "claude-session-menu.log"
+LOG_PATH = Path.home() / "Library" / "Logs" / "claude-sessions.log"
 
 
 def log_failure(context: str, msg: str) -> None:
-    """Append a failure line to ~/Library/Logs/claude-session-menu.log. Swallows
+    """Append a failure line to ~/Library/Logs/claude-sessions.log. Swallows
     OSError so a logging failure can't crash the menu."""
     try:
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)

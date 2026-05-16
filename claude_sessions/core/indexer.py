@@ -20,6 +20,6 @@ def _loop() -> None:
 
 
 def start() -> threading.Thread:
-    t = threading.Thread(target=_loop, daemon=True, name="claude-dash-indexer")
+    t = threading.Thread(target=_loop, daemon=True, name="claude-sessions-indexer")
     t.start()
     return t
