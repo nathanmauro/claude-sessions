@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.uv/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+
+# web
+node_modules/
+.vite/
+*.log
+test-results/
+playwright-report/
+playwright/.cache/
+web/dist/
+
+# local state
+.claude-sessions/
+*.db
+*.db-shm
+*.db-wal
