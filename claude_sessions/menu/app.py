@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import rumps
 
-from claude_session_menu import launcher, processes, sessions
+from ..core import sessions
+from . import launcher, processes
 
 REFRESH_SECS = 15
 MAX_RUNNING_ITEMS = 20

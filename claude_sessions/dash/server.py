@@ -16,17 +16,19 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import db, indexer, launcher, notion
-from .config import HOST, PORT
-from .events import bus
-from .models import UsageTotals
+from ..core import db, indexer
+from ..core.config import HOST, PORT
+from ..core.events import bus
+from ..core.models import UsageTotals
+from . import launcher_extras as launcher
+from . import notion
 from .subscription import load_subscription_usage
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 WEB_DIST = ROOT / "web" / "dist"
 WEB_INDEX = WEB_DIST / "index.html"
 
-app = FastAPI(title="claude-dash", docs_url=None, redoc_url=None)
+app = FastAPI(title="claude-sessions", docs_url=None, redoc_url=None)
 
 
 @app.on_event("startup")

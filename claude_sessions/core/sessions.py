@@ -1,16 +1,14 @@
-"""Enumerate Claude Code sessions from ~/.claude/projects/ or claude-dash SQLite."""
+"""Enumerate Claude Code sessions, preferring the SQLite index when present."""
 from __future__ import annotations
 
 import datetime as dt
 import json
-import os
 import sqlite3
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterator
 
-PROJECTS_DIR = Path.home() / ".claude" / "projects"
-DASH_DB = Path.home() / ".claude-dash" / "index.db"
+from .config import DB_PATH, PROJECTS_DIR
 
 
 @dataclass
@@ -113,8 +111,8 @@ def parse_session_file(path: Path) -> Session | None:
     return sess
 
 
-def load_sessions_from_dash(db_path: Path = DASH_DB) -> list[Session] | None:
-    """Read session rows from the claude-dash SQLite index. Returns None on any
+def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
+    """Read session rows from the SQLite index. Returns None on any
     schema/availability issue so the caller can fall back to JSONL parsing."""
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
@@ -153,8 +151,8 @@ def load_sessions_from_dash(db_path: Path = DASH_DB) -> list[Session] | None:
 
 
 def list_sessions(projects_dir: Path = PROJECTS_DIR) -> list[Session]:
-    if DASH_DB.exists():
-        rows = load_sessions_from_dash(DASH_DB)
+    if DB_PATH.exists():
+        rows = load_sessions_from_index(DB_PATH)
         if rows is not None:
             rows.sort(key=lambda s: s.mtime, reverse=True)
             return rows

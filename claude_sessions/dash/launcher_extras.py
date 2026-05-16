@@ -7,8 +7,8 @@ import subprocess
 import threading
 from pathlib import Path
 
-from . import db
-from .config import AUGGIE_BIN
+from ..core import db
+from ..core.config import AUGGIE_BIN
 
 
 def _terminal_run(cmd: str) -> tuple[bool, str]:
@@ -67,6 +67,8 @@ def open_editor(cwd: str) -> tuple[bool, str]:
 
 
 def _augment_index_worker(cwd: str) -> None:
+    if not AUGGIE_BIN:
+        return
     try:
         subprocess.run([AUGGIE_BIN, "index", "--print"], cwd=cwd, check=True)
         db.set_augment_indexed_at(cwd, dt.datetime.now().isoformat())
@@ -75,6 +77,8 @@ def _augment_index_worker(cwd: str) -> None:
 
 
 def trigger_augment_index(cwd: str) -> tuple[bool, str]:
+    if not AUGGIE_BIN:
+        return False, "set CLAUDE_SESSIONS_AUGGIE to enable augment integration"
     threading.Thread(target=_augment_index_worker, args=(cwd,), daemon=True).start()
     return True, "indexing started"
 

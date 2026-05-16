@@ -7,16 +7,16 @@ import subprocess
 
 import httpx
 
-from .config import (
+from ..core.config import (
+    CACHE_DIR,
     KEYCHAIN_ACCOUNT,
     KEYCHAIN_SERVICE,
     NOTION_API,
     NOTION_CACHE_FILE,
     NOTION_DB_ID,
     NOTION_VERSION,
-    DASH_CACHE,
 )
-from .models import NotionTodo, NotionTodosResult
+from ..core.models import NotionTodo, NotionTodosResult
 
 
 def get_token() -> str | None:
@@ -123,7 +123,7 @@ def refresh_cache() -> bool:
     todos = fetch_todos_live(tok)
     if todos is None:
         return False
-    DASH_CACHE.mkdir(parents=True, exist_ok=True)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
     NOTION_CACHE_FILE.write_text(json.dumps({
         "fetched_at": dt.datetime.now().astimezone().isoformat(),
         "source": "api",

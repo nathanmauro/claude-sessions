@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 
-from .config import USAGE_FILE
-from .models import SubscriptionUsage
+from ..core.config import USAGE_FILE
+from ..core.models import SubscriptionUsage
 
 
 def load_subscription_usage() -> SubscriptionUsage | None:
