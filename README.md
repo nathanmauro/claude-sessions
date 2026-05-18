@@ -67,13 +67,30 @@ claude-sessions dash
 claude-sessions ls                        # table of sessions, newest first
 claude-sessions ls --json --limit 200     # machine-readable
 claude-sessions running                   # active claude --resume processes
-claude-sessions open <sid> [--prompt X]   # open new Ghostty window in the recorded cwd
+claude-sessions show <sid>                # session metadata (--short / --json)
+claude-sessions pick                      # interactive fzf picker; prints chosen sid
+claude-sessions open <sid> [--prompt X]   # open new terminal window/pane in the recorded cwd
 claude-sessions focus <sid>               # bring the terminal running this session to front
 claude-sessions smart <sid>               # focus if running, else open new
 claude-sessions index                     # refresh the SQLite index
 ```
 
-Session IDs accept unique prefixes; pipe `ls --json` into fzf for an interactive resume picker.
+Session IDs accept unique prefixes. `pick` requires `fzf` on PATH (`brew install fzf`) and chains directly into a resume with `--exec smart`:
+
+```bash
+# Print the chosen sid:
+claude-sessions pick
+
+# Pick + smart-resume in one shot:
+claude-sessions pick --exec smart
+```
+
+`open`, `focus`, `smart`, and `pick` all accept `--launcher {ghostty,tmux,zellij,generic}` (or set `CLAUDE_SESSIONS_LAUNCHER`) to override autodetection. Default behavior:
+
+- inside zellij → new pane in the current zellij session
+- inside tmux → new window in the current tmux session
+- otherwise on macOS → new Ghostty window
+- otherwise → fail loud with an install hint
 
 ### Menubar
 
