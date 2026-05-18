@@ -1,8 +1,10 @@
-"""Unified CLI for claude-sessions: ls / running / open / focus / smart / menu / dash / index."""
+"""Unified CLI for claude-sessions: ls / running / open / focus / smart / show / pick / menu / dash / index."""
 from __future__ import annotations
 
 import argparse
 import json
+import shlex
+import subprocess
 import sys
 
 from ..core import launcher as core_launcher
@@ -108,6 +110,112 @@ def _cmd_smart(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def _indent(text: str, prefix: str = "  ") -> str:
+    return "\n".join(prefix + line for line in text.strip().splitlines())
+
+
+def _format_show_short(s: sessions.Session) -> str:
+    """Compact preview used as fzf's --preview pane in `pick`."""
+    last = (s.last_prompt or s.first_prompt or "").strip()
+    if len(last) > 240:
+        last = last[:240] + "…"
+    return "\n".join(
+        [
+            f"project: {s.project_name}",
+            f"started: {s.start_ts or '-'} ({age_from_iso(s.start_ts)})",
+            f"ended:   {s.end_ts or '-'} ({age_from_iso(s.end_ts)})",
+            f"turns:   {s.user_msg_count}",
+            "",
+            last or "(no prompts)",
+        ]
+    )
+
+
+def _format_show_full(s: sessions.Session) -> str:
+    parts = [
+        f"session: {s.session_id}",
+        f"project: {s.project_name}",
+        f"cwd:     {s.cwd}",
+        f"started: {s.start_ts or '-'} ({age_from_iso(s.start_ts)})",
+        f"ended:   {s.end_ts or '-'} ({age_from_iso(s.end_ts)})",
+        f"turns:   {s.user_msg_count}",
+    ]
+    if s.title:
+        parts.append(f"title:   {s.title}")
+    if s.first_prompt:
+        parts.extend(["", "first prompt:", _indent(s.first_prompt)])
+    if s.last_prompt and s.last_prompt != s.first_prompt:
+        parts.extend(["", "last prompt:", _indent(s.last_prompt)])
+    return "\n".join(parts)
+
+
+def _cmd_show(args: argparse.Namespace) -> int:
+    sess = _find_session(args.session_id)
+    if sess is None:
+        print(f"no session matched: {args.session_id}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(sess.to_dict(), indent=2))
+        return 0
+    print(_format_show_short(sess) if args.short else _format_show_full(sess))
+    return 0
+
+
+def _cmd_pick(args: argparse.Namespace) -> int:
+    items = sessions.list_sessions()
+    if not items:
+        print("no sessions found", file=sys.stderr)
+        return 1
+    # Tab-delimited rows: <session_id> \t <project> \t <title>. --with-nth/--nth=2,3
+    # hides the id column from the user but keeps it parseable on selection.
+    rows = [
+        f"{s.session_id}\t{s.project_name[:24]}\t{sessions.session_display_title(s, maxlen=80)}"
+        for s in items
+    ]
+    preview_cmd = (
+        f"{shlex.quote(sys.executable)} -m claude_sessions.cli.main show --short {{1}}"
+    )
+    fzf_args = [
+        "fzf",
+        "--delimiter=\t",
+        "--with-nth=2,3",
+        "--nth=2,3",
+        "--preview", preview_cmd,
+        "--preview-window=right:50%:wrap",
+        "--prompt=session> ",
+        "--height=85%",
+        "--reverse",
+        "--header=enter to select  •  esc to cancel",
+    ]
+    try:
+        proc = subprocess.run(
+            fzf_args, input="\n".join(rows), capture_output=True, text=True
+        )
+    except FileNotFoundError:
+        print(
+            "fzf not found. install it:\n"
+            "  macOS: brew install fzf\n"
+            "  Linux: apt/dnf/pacman install fzf",
+            file=sys.stderr,
+        )
+        return 5
+    # 130 = user cancel (Esc/Ctrl-C); empty stdout = no selection
+    if proc.returncode == 130 or not proc.stdout.strip():
+        return 0
+    if proc.returncode != 0:
+        print(proc.stderr, file=sys.stderr)
+        return 1
+    chosen_sid = proc.stdout.strip().split("\t", 1)[0]
+    if args.exec == "smart":
+        return _cmd_smart(argparse.Namespace(session_id=chosen_sid, launcher=args.launcher))
+    if args.exec == "open":
+        return _cmd_open(
+            argparse.Namespace(session_id=chosen_sid, launcher=args.launcher, prompt="")
+        )
+    print(chosen_sid)
+    return 0
+
+
 def _cmd_menu(_: argparse.Namespace) -> int:
     try:
         from ..menu.app import main as menu_main
@@ -122,8 +230,9 @@ def _cmd_menu(_: argparse.Namespace) -> int:
 def _cmd_dash(args: argparse.Namespace) -> int:
     try:
         import uvicorn
-        from ..dash.server import app
+
         from ..core.config import HOST, PORT
+        from ..dash.server import app
     except ImportError as e:
         print(f"dash extra not installed: {e}", file=sys.stderr)
         print("install with: pip install 'claude-sessions[dash]'", file=sys.stderr)
@@ -195,6 +304,24 @@ def main(argv: list[str] | None = None) -> int:
     p_smart.add_argument("session_id")
     p_smart.add_argument("--launcher", choices=launcher_choices, default=None, help=launcher_help)
     p_smart.set_defaults(func=_cmd_smart)
+
+    p_show = sub.add_parser("show", help="print session metadata (also used by `pick` --preview)")
+    p_show.add_argument("session_id")
+    p_show.add_argument("--json", action="store_true")
+    p_show.add_argument(
+        "--short", action="store_true", help="compact form for fzf preview pane"
+    )
+    p_show.set_defaults(func=_cmd_show)
+
+    p_pick = sub.add_parser("pick", help="interactive fzf picker; prints chosen session id")
+    p_pick.add_argument(
+        "--exec",
+        choices=["none", "smart", "open"],
+        default="none",
+        help="after picking, chain into `smart` or `open` instead of printing the id",
+    )
+    p_pick.add_argument("--launcher", choices=launcher_choices, default=None, help=launcher_help)
+    p_pick.set_defaults(func=_cmd_pick)
 
     p_menu = sub.add_parser("menu", help="launch macOS menubar app (requires [menu] extra)")
     p_menu.set_defaults(func=_cmd_menu)
