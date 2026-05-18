@@ -5,9 +5,18 @@ import argparse
 import json
 import sys
 
+from ..core import launcher as core_launcher
 from ..core import sessions
 from ..core.sessions import age_from_iso
-from ..menu import launcher, processes
+from ..menu import processes
+
+
+def _get_launcher(args: argparse.Namespace) -> core_launcher.Launcher:
+    """Honor --launcher flag; otherwise autodetect from $TMUX / $ZELLIJ / Ghostty."""
+    name = getattr(args, "launcher", None)
+    if name:
+        return core_launcher.get_launcher(name)
+    return core_launcher.autodetect()
 
 
 def _cmd_ls(args: argparse.Namespace) -> int:
@@ -53,7 +62,8 @@ def _cmd_open(args: argparse.Namespace) -> int:
     if sess is None:
         print(f"no session matched: {args.session_id}", file=sys.stderr)
         return 2
-    ok, msg = launcher.open_new(sess.cwd, sess.session_id, extra=args.prompt or "")
+    lnc = _get_launcher(args)
+    ok, msg = lnc.open_new(sess.cwd, sess.session_id, extra=args.prompt or "")
     print(msg)
     return 0 if ok else 1
 
@@ -67,10 +77,11 @@ def _cmd_focus(args: argparse.Namespace) -> int:
     if running is None:
         print(f"session {sess.session_id[:8]} is not running", file=sys.stderr)
         return 3
+    lnc = _get_launcher(args)
     if running.terminal_pid:
-        ok, msg = launcher.focus_pid(running.terminal_pid)
+        ok, msg = lnc.focus_pid(running.terminal_pid)
     elif running.terminal_app:
-        ok, msg = launcher.focus_app(running.terminal_app)
+        ok, msg = lnc.focus_app(running.terminal_app)
     else:
         ok, msg = False, "no terminal located in parent chain"
     print(msg)
@@ -82,16 +93,17 @@ def _cmd_smart(args: argparse.Namespace) -> int:
     if sess is None:
         print(f"no session matched: {args.session_id}", file=sys.stderr)
         return 2
+    lnc = _get_launcher(args)
     running = processes.find_running(sess.session_id)
     if running and running.terminal_pid:
-        ok, msg = launcher.focus_pid(running.terminal_pid)
+        ok, msg = lnc.focus_pid(running.terminal_pid)
         print(f"focus: {msg}")
         return 0 if ok else 1
     if running and running.terminal_app:
-        ok, msg = launcher.focus_app(running.terminal_app)
+        ok, msg = lnc.focus_app(running.terminal_app)
         print(f"focus: {msg}")
         return 0 if ok else 1
-    ok, msg = launcher.open_new(sess.cwd, sess.session_id)
+    ok, msg = lnc.open_new(sess.cwd, sess.session_id)
     print(f"open: {msg}")
     return 0 if ok else 1
 
@@ -162,17 +174,26 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--json", action="store_true")
     p_run.set_defaults(func=_cmd_running)
 
-    p_open = sub.add_parser("open", help="open session in new Ghostty/Terminal window")
+    launcher_choices = ["ghostty", "tmux", "zellij", "generic"]
+    launcher_help = (
+        "override launcher backend (default: autodetect $ZELLIJ / $TMUX / Ghostty.app; "
+        "also honors $CLAUDE_SESSIONS_LAUNCHER env var)"
+    )
+
+    p_open = sub.add_parser("open", help="open session in a new terminal window or pane")
     p_open.add_argument("session_id")
     p_open.add_argument("--prompt", default="")
+    p_open.add_argument("--launcher", choices=launcher_choices, default=None, help=launcher_help)
     p_open.set_defaults(func=_cmd_open)
 
     p_focus = sub.add_parser("focus", help="focus terminal running this session")
     p_focus.add_argument("session_id")
+    p_focus.add_argument("--launcher", choices=launcher_choices, default=None, help=launcher_help)
     p_focus.set_defaults(func=_cmd_focus)
 
     p_smart = sub.add_parser("smart", help="focus if running, else open new")
     p_smart.add_argument("session_id")
+    p_smart.add_argument("--launcher", choices=launcher_choices, default=None, help=launcher_help)
     p_smart.set_defaults(func=_cmd_smart)
 
     p_menu = sub.add_parser("menu", help="launch macOS menubar app (requires [menu] extra)")

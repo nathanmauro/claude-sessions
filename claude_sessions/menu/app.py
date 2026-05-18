@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import rumps
 
+from ..core import launcher as core_launcher
 from ..core import sessions
-from . import launcher, processes
+from ..core.launcher import log_failure
+from . import processes
 
 REFRESH_SECS = 15
 MAX_RUNNING_ITEMS = 20
@@ -14,6 +16,9 @@ MAX_RECENT_ITEMS = 20
 class ClaudeSessionApp(rumps.App):
     def __init__(self) -> None:
         super().__init__("CC", quit_button=None)
+        # A menu click always spawns a GUI window; never a multiplexer pane
+        # (even if the menubar process was launched from inside tmux/zellij).
+        self._launcher = core_launcher.gui_window()
         self._build_menu()
         self._timer = rumps.Timer(self._on_tick, REFRESH_SECS)
         self._timer.start()
@@ -88,20 +93,20 @@ class ClaudeSessionApp(rumps.App):
             return
         running = processes.find_running(sid)
         if running and running.terminal_pid:
-            ok, msg = launcher.focus_pid(running.terminal_pid)
+            ok, msg = self._launcher.focus_pid(running.terminal_pid)
             self._report("focus_pid", ok, msg)
             return
         if running and running.terminal_app:
-            ok, msg = launcher.focus_app(running.terminal_app)
+            ok, msg = self._launcher.focus_app(running.terminal_app)
             self._report("focus_app", ok, msg)
             return
-        ok, msg = launcher.open_new(cwd, sid)
+        ok, msg = self._launcher.open_new(cwd, sid)
         self._report("open_new", ok, msg)
 
     def _report(self, context: str, ok: bool, msg: str) -> None:
         if ok:
             return
-        launcher.log_failure(context, msg)
+        log_failure(context, msg)
         try:
             rumps.notification(title="Claude session", subtitle=context, message=msg)
         except Exception:

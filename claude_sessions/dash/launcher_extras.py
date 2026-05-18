@@ -1,49 +1,21 @@
 from __future__ import annotations
 
 import datetime as dt
-import json
-import shlex
 import subprocess
 import threading
 from pathlib import Path
 
 from ..core import db
 from ..core.config import AUGGIE_BIN
-
-
-def _terminal_run(cmd: str) -> tuple[bool, str]:
-    osascript = (
-        'tell application "Terminal"\n'
-        "  activate\n"
-        f"  do script {json.dumps(cmd)}\n"
-        "end tell"
-    )
-    try:
-        subprocess.run(["osascript", "-e", osascript], check=True, capture_output=True)
-        return True, cmd
-    except subprocess.CalledProcessError as e:
-        return False, e.stderr.decode("utf-8", errors="replace")
+from ..core.launcher import gui_window
 
 
 def start_session(cwd: str, prompt: str = "") -> tuple[bool, str]:
-    if not Path(cwd).exists():
-        return False, f"cwd does not exist: {cwd}"
-    cmd = f"cd {shlex.quote(cwd)} && claude"
-    if prompt.strip():
-        cmd += f" {shlex.quote(prompt.strip())}"
-    return _terminal_run(cmd)
+    return gui_window().open_new(cwd, session_id=None, extra=prompt)
 
 
 def resume_session(session_id: str, cwd: str, prompt: str = "") -> tuple[bool, str]:
-    if not Path(cwd).exists():
-        return False, f"cwd does not exist: {cwd}"
-    parts = [
-        f"cd {shlex.quote(cwd)}",
-        f"claude --resume {shlex.quote(session_id)}",
-    ]
-    if prompt.strip():
-        parts[-1] += f" {shlex.quote(prompt.strip())}"
-    return _terminal_run(" && ".join(parts))
+    return gui_window().open_new(cwd, session_id=session_id, extra=prompt)
 
 
 def open_finder(cwd: str) -> tuple[bool, str]:
