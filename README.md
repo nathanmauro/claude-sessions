@@ -146,12 +146,14 @@ web/     Vite + React + TanStack Query frontend
 
 ## History
 
-This repo is a consolidation of two earlier projects:
+This repo is a consolidation of two related projects:
 
 - [`nathanmauro/claude-session-menu`](https://github.com/nathanmauro/claude-session-menu) — the menubar app
 - [`nathanmauro/claude-dash`](https://github.com/nathanmauro/claude-dash) — the web dashboard
 
-Both have been archived in favor of this unified repo. Their commit histories are preserved here.
+Their commit histories are preserved here. The standalone `claude-dash` repo
+remains usable directly for the dashboard while this repo provides the unified
+CLI, menu bar, and dashboard package.
 
 ## License
 
