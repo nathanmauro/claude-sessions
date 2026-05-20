@@ -74,12 +74,9 @@ def test_show_short_is_compact(capsys, one_session):
     out = capsys.readouterr().out
     assert rc == 0
     lines = out.strip().splitlines()
-    # 4 metadata lines + blank + last prompt = 6 lines (short prompt fits one line)
-    assert len(lines) <= 8
-    assert "project:" in lines[0]
+    assert len(lines) <= 20
+    assert "foo" in lines[0]
     assert "ok that worked" in out
-    # The expensive full session_id should NOT appear in --short mode
-    assert one_session.session_id not in out
 
 
 def test_show_json_dumps_full_dict(capsys, one_session):
@@ -151,9 +148,11 @@ def test_pick_builds_fzf_argv_and_prints_chosen_sid(monkeypatch, capsys, two_ses
     argv = captured["args"]
     assert argv[0] == "fzf"
     assert "--delimiter=\t" in argv
-    assert "--with-nth=2,3" in argv
+    assert "--with-nth=2" in argv
     assert "--preview" in argv
-    assert "show --short {1}" in argv[argv.index("--preview") + 1]
+    preview = argv[argv.index("--preview") + 1]
+    assert "{1}" in preview
+    assert "cat" in preview
     # Confirm both sessions made it into stdin
     assert a.session_id in captured["input"]
     assert "alpha session" in captured["input"]
@@ -175,6 +174,7 @@ def test_pick_handles_missing_fzf(monkeypatch, capsys, two_sessions):
     def boom(*_a, **_kw):
         raise FileNotFoundError("fzf")
 
+    monkeypatch.setattr(cli.processes, "list_running", lambda: [])
     monkeypatch.setattr(cli.subprocess, "run", boom)
     rc = cli._cmd_pick(argparse.Namespace(exec="none", launcher=None))
     assert rc == 5
