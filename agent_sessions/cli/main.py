@@ -252,7 +252,6 @@ def _cmd_pick(args: argparse.Namespace) -> int:
             "--ansi",
             "--delimiter=\t",
             "--with-nth=2",
-            "--nth=2",
             "--preview", preview_cmd,
             "--preview-window=right:55%:wrap",
             "--prompt=session> ",
