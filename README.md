@@ -107,6 +107,33 @@ A React SPA served by FastAPI with SSE for live index updates. Routes:
 
 The frontend lives in `web/`; build it once with `npm run build` before launching, or run `npm run dev` against a separate `claude-sessions dash` process during frontend development.
 
+## Multiplexer integration
+
+One-key picker from inside your terminal multiplexer.
+
+### tmux (via TPM)
+
+Add to `~/.tmux.conf`:
+
+```tmux
+set -g @plugin 'nathanmauro/claude-sessions'
+set -g @claude_sessions_key 'C'   # optional; default is C
+```
+
+Then `prefix + I` to install. `prefix + C` opens an fzf popup — pick a session,
+hit enter, and `smart` resumes it in a new tmux pane (or focuses the existing
+one).
+
+### zellij
+
+Paste the snippet from [share/zellij/README.md](share/zellij/README.md) into
+`~/.config/zellij/config.kdl` and reload (`Ctrl + Shift + L`). `Alt + p` opens
+the picker in a transient pane.
+
+Both bindings shell out to `claude-sessions pick --exec smart`, so
+`claude-sessions` must be on `$PATH` (`pipx install claude-sessions` or
+`uv tool install claude-sessions`).
+
 ## Configuration
 
 All config is environment variables, with sensible defaults:

@@ -1,6 +1,6 @@
 [project]
 name = "claude-sessions"
-version = "0.5.0"
+version = "0.6.0"
 description = "Browse, resume, and visualize Claude Code sessions from CLI, macOS menubar, and a local web dashboard."
 readme = "README.md"
 license = { text = "MIT" }
