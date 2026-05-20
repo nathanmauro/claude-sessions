@@ -238,3 +238,36 @@ def test_pick_exec_open_chains_into_open(monkeypatch, two_sessions):
     assert rc == 0
     assert open_called["ns"].session_id == a.session_id
     assert open_called["ns"].prompt == ""
+
+
+def test_pick_nonzero_returncode_with_empty_stdout_reports_error(
+    monkeypatch, capsys, two_sessions
+):
+    """fzf crashing (nonzero, non-130) must NOT be swallowed as user-cancel."""
+
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=args, returncode=2, stdout="", stderr="fzf: something broke\n"
+        )
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    rc = cli._cmd_pick(argparse.Namespace(exec="none", launcher=None))
+    assert rc == 1
+    assert "fzf: something broke" in capsys.readouterr().err
+
+
+def test_pick_nonzero_returncode_falls_back_to_synthetic_error(
+    monkeypatch, capsys, two_sessions
+):
+    """When stderr is empty too, surface the exit status instead of an empty line."""
+
+    def fake_run(args, **_kwargs):
+        return subprocess.CompletedProcess(
+            args=args, returncode=2, stdout="", stderr=""
+        )
+
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    rc = cli._cmd_pick(argparse.Namespace(exec="none", launcher=None))
+    assert rc == 1
+    err = capsys.readouterr().err
+    assert "fzf exited with status 2" in err

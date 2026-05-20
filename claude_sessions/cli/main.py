@@ -199,12 +199,15 @@ def _cmd_pick(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 5
-    # 130 = user cancel (Esc/Ctrl-C); empty stdout = no selection
-    if proc.returncode == 130 or not proc.stdout.strip():
+    # 130 = user cancel (Esc/Ctrl-C); other nonzero = real error
+    if proc.returncode == 130:
         return 0
     if proc.returncode != 0:
-        print(proc.stderr, file=sys.stderr)
+        err = proc.stderr.strip() or f"fzf exited with status {proc.returncode}"
+        print(err, file=sys.stderr)
         return 1
+    if not proc.stdout.strip():
+        return 0
     chosen_sid = proc.stdout.strip().split("\t", 1)[0]
     if args.exec == "smart":
         return _cmd_smart(argparse.Namespace(session_id=chosen_sid, launcher=args.launcher))
