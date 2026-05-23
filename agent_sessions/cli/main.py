@@ -301,7 +301,7 @@ def _cmd_menu(_: argparse.Namespace) -> int:
         from ..menu.app import main as menu_main
     except ImportError as e:
         print(f"menu extra not installed: {e}", file=sys.stderr)
-        print("install with: pip install 'claude-sessions[menu]'", file=sys.stderr)
+        print("install with: pip install 'agent-sessions[menu]'", file=sys.stderr)
         return 5
     menu_main()
     return 0
@@ -315,7 +315,7 @@ def _cmd_dash(args: argparse.Namespace) -> int:
         from ..dash.server import app
     except ImportError as e:
         print(f"dash extra not installed: {e}", file=sys.stderr)
-        print("install with: pip install 'claude-sessions[dash]'", file=sys.stderr)
+        print("install with: pip install 'agent-sessions[dash]'", file=sys.stderr)
         return 5
     host = args.host or HOST
     port = args.port or PORT
@@ -366,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
     launcher_choices = ["ghostty", "tmux", "zellij", "generic"]
     launcher_help = (
         "override launcher backend (default: autodetect $ZELLIJ / $TMUX / Ghostty.app; "
-        "also honors $CLAUDE_SESSIONS_LAUNCHER env var)"
+        "also honors $AGENT_SESSIONS_LAUNCHER env var)"
     )
 
     p_open = sub.add_parser("open", help="open session in a new terminal window or pane")
@@ -417,6 +417,15 @@ def main(argv: list[str] | None = None) -> int:
 
     args = p.parse_args(argv)
     return args.func(args)
+
+
+def legacy_main() -> None:
+    """Entrypoint for the deprecated ``claude-sessions`` command name."""
+    print(
+        "warning: 'claude-sessions' is deprecated; use 'agent-sessions'",
+        file=sys.stderr,
+    )
+    sys.exit(main())
 
 
 if __name__ == "__main__":

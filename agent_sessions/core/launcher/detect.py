@@ -4,13 +4,19 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from .._compat import _env
 from .base import Launcher
 from .generic import GenericLauncher
 from .ghostty import GHOSTTY_APP, GhosttyLauncher
 from .tmux import TmuxLauncher
 from .zellij import ZellijLauncher
 
-ENV_VAR = "CLAUDE_SESSIONS_LAUNCHER"
+ENV_VAR = "AGENT_SESSIONS_LAUNCHER"
+_LEGACY_ENV_VAR = "CLAUDE_SESSIONS_LAUNCHER"
+
+# Eagerly probe at import so the deprecation warning fires once even for
+# subcommands (e.g. ``ls``) that never reach the launcher selection path.
+_env(ENV_VAR, _LEGACY_ENV_VAR)
 
 _REGISTRY: dict[str, type[Launcher]] = {
     "ghostty": GhosttyLauncher,
@@ -33,13 +39,14 @@ def get_launcher(name: str) -> Launcher:
 def autodetect() -> Launcher:
     """Choose a launcher from the calling process's environment.
 
-    Order: ``$CLAUDE_SESSIONS_LAUNCHER`` override → ``$ZELLIJ`` → ``$TMUX`` →
+    Order: ``$AGENT_SESSIONS_LAUNCHER`` override (or legacy
+    ``$CLAUDE_SESSIONS_LAUNCHER``) → ``$ZELLIJ`` → ``$TMUX`` →
     Ghostty.app present → :class:`GenericLauncher`.
 
-    Use this from the CLI: when the user runs ``claude-sessions smart`` inside
+    Use this from the CLI: when the user runs ``agent-sessions smart`` inside
     a multiplexer, they expect a new pane in *that* multiplexer, not a fresh
     external terminal."""
-    forced = os.environ.get(ENV_VAR)
+    forced = _env(ENV_VAR, _LEGACY_ENV_VAR)
     if forced:
         return get_launcher(forced)
     if os.environ.get("ZELLIJ"):
@@ -60,7 +67,7 @@ def gui_window() -> Launcher:
 
     Honors the override env var only if it names a GUI launcher (``ghostty`` or
     ``generic``)."""
-    forced = os.environ.get(ENV_VAR)
+    forced = _env(ENV_VAR, _LEGACY_ENV_VAR)
     if forced in ("ghostty", "generic"):
         return get_launcher(forced)
     if Path(GHOSTTY_APP).exists():
