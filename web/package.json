@@ -1,5 +1,5 @@
 {
-  "name": "claude-sessions-web",
+  "name": "agent-sessions-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",

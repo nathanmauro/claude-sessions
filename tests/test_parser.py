@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from claude_sessions.core.parser import (
+from agent_sessions.core.parser import (
     decode_project_dir,
     extract_text,
     is_real_user_prompt,

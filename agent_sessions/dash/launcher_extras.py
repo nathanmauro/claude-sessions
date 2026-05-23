@@ -50,7 +50,7 @@ def _augment_index_worker(cwd: str) -> None:
 
 def trigger_augment_index(cwd: str) -> tuple[bool, str]:
     if not AUGGIE_BIN:
-        return False, "set CLAUDE_SESSIONS_AUGGIE to enable augment integration"
+        return False, "set AGENT_SESSIONS_AUGGIE to enable augment integration"
     threading.Thread(target=_augment_index_worker, args=(cwd,), daemon=True).start()
     return True, "indexing started"
 
