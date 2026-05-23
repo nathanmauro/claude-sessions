@@ -1,4 +1,4 @@
-# claude-sessions — plan / next session handoff
+# agent-sessions — plan / next session handoff
 
 Snapshot for resuming work in a fresh Claude Code session. Pair with the
 project-level [`CLAUDE.md`](CLAUDE.md) (consolidation history + per-package
@@ -91,8 +91,8 @@ No new Python code; therefore no new Python tests. Add a `tests/test_tmux_plugin
 
 User explicitly wants the dashboard kept for "search from a separate place from terminal." Tighten it to that story.
 
-- [ ] Make the global search box more prominent on first load (it's currently a per-day list with search hidden behind a click — verify by running `claude-sessions dash` and looking).
-- [ ] README section: "Searching from elsewhere" with `claude-sessions dash --host 0.0.0.0` instructions + a warning that this exposes the API to the LAN.
+- [ ] Make the global search box more prominent on first load (it's currently a per-day list with search hidden behind a click — verify by running `agent-sessions dash` and looking).
+- [ ] README section: "Searching from elsewhere" with `agent-sessions dash --host 0.0.0.0` instructions + a warning that this exposes the API to the LAN.
 - [ ] **Don't add auth** in this phase. If the user wants auth-protected dashboard access from anywhere, that's a separate, larger conversation (reverse-proxy + Tailscale serve, or a token-based middleware).
 - [ ] Confirm the dash still works after the Phase 1 launcher refactor: `start_session` / `resume_session` now route through `core.launcher.gui_window()`. Manual smoke: click "Resume" on a session card.
 
@@ -105,7 +105,7 @@ Front-end source lives in `web/`; build with `npm run build`. The Python server 
 These came up in planning and are explicitly out of scope until the user picks them up:
 
 - **Textual TUI** as a dash-replacement candidate. User chose to keep the React dash, so deprioritize.
-- **`claude-sessions search "<query>"`** — CLI exposure of the dash's FTS5 search. Nice but not urgent.
+- **`agent-sessions search "<query>"`** — CLI exposure of the dash's FTS5 search. Nice but not urgent.
 - **Tags / favorites** on sessions.
 - **Notion sync of sessions** — push session metadata into Notion for cross-tool searchability.
 - **Auto-archive / cleanup** of old session JSONL.

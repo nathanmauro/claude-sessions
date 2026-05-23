@@ -20,7 +20,7 @@ playwright/.cache/
 web/dist/
 
 # local state
-.claude-sessions/
+.agent-sessions/
 *.db
 *.db-shm
 *.db-wal
