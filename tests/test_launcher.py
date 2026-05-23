@@ -5,8 +5,8 @@ import subprocess
 
 import pytest
 
-from claude_sessions.core import launcher as core_launcher
-from claude_sessions.core.launcher import (
+from agent_sessions.core import launcher as core_launcher
+from agent_sessions.core.launcher import (
     GenericLauncher,
     GhosttyLauncher,
     TmuxLauncher,
@@ -26,7 +26,7 @@ def fake_claude_bin(monkeypatch):
     # each module's local reference too.
     for mod_name in ("ghostty", "tmux", "zellij"):
         mod = __import__(
-            f"claude_sessions.core.launcher.{mod_name}", fromlist=["claude_bin"]
+            f"agent_sessions.core.launcher.{mod_name}", fromlist=["claude_bin"]
         )
         monkeypatch.setattr(mod, "claude_bin", lambda: "/bin/claude")
     return "/bin/claude"

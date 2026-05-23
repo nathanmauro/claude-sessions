@@ -7,8 +7,8 @@ import subprocess
 
 import pytest
 
-from claude_sessions.cli import main as cli
-from claude_sessions.core.sessions import Session
+from agent_sessions.cli import main as cli
+from agent_sessions.core.sessions import Session
 
 
 def _make_session(**overrides) -> Session:
