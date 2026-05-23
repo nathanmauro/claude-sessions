@@ -243,7 +243,7 @@ def _cmd_pick(args: argparse.Namespace) -> int:
 
     rows = [_row(s) for s in items]
 
-    with tempfile.TemporaryDirectory(prefix="claude-sessions-pick-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="agent-sessions-pick-") as tmp:
         for s in items:
             (Path(tmp) / f"{s.session_id}.txt").write_text(_format_show_short(s))
         preview_cmd = f"cat {shlex.quote(tmp)}/{{1}}.txt"
@@ -349,7 +349,7 @@ def _find_session(needle: str):
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="claude-sessions",
+        prog="agent-sessions",
         description="Browse, resume, and visualize Claude Code sessions.",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
