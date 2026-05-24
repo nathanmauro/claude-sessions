@@ -10,9 +10,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "screenshot": "node scripts/capture-screenshot.mjs",
-    "screenshot:cli": "node scripts/capture-cli.mjs",
-    "screenshot:menu": "node scripts/capture-menu.mjs",
-    "screenshot:all": "node scripts/capture-screenshot.mjs && node scripts/capture-cli.mjs && node scripts/capture-menu.mjs"
+    "screenshot:cli": "bash scripts/capture-cli.sh",
+    "screenshot:menu": "bash scripts/capture-menu.sh",
+    "screenshot:all": "node scripts/capture-screenshot.mjs && bash scripts/capture-cli.sh && bash scripts/capture-menu.sh"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",

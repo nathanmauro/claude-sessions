@@ -13,7 +13,7 @@ export function TopBar({ data }: Props) {
       <div className="brand">
         <span className="brand-dot" aria-hidden="true" />
         <h1>
-          claude<span className="brand-sep">·</span>dash
+          agent<span className="brand-sep">·</span>sessions
         </h1>
       </div>
       <RangePicker />
