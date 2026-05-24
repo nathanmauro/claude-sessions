@@ -2,6 +2,25 @@
 
 Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) sessions from three surfaces — terminal CLI, macOS menubar, and a local web dashboard — all backed by a shared SQLite index of `~/.claude/projects/*.jsonl`.
 
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="Dashboard — browse sessions, tasks, and token usage" width="820"><br>
+  <em>Dashboard: browse sessions, tasks, and token usage in your browser.</em>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/menubar.png" alt="Menubar dropdown — running and recent sessions grouped by project" width="100%"><br>
+      <em>Menubar: live count of running sessions, recents grouped by project.</em>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/cli.png" alt="CLI — agent-sessions ls" width="100%"><br>
+      <em>CLI: <code>agent-sessions ls</code> for scripting and quick lookup.</em>
+    </td>
+  </tr>
+</table>
+
+
 > **Status:** alpha (0.3.0). Mac-first. Linux/Windows untested for the menubar surface; CLI + dash should work cross-platform once a non-Ghostty launcher path is added.
 
 ## Migrating from `claude-sessions`
