@@ -28,16 +28,7 @@ even though the project/package was renamed to `agent-sessions`).
 
 ## Deferred (per user choice "Push public, but don't archive yet")
 
-1. **Archive the two source repos** when user is ready:
-   - Append "Moved to nathanmauro/claude-sessions" to each README first.
-   - Then `gh repo archive nathanmauro/claude-session-menu` and `gh repo archive nathanmauro/claude-dash`.
-2. **Fast-forward `claude-dash` main** — the playwright e2e commit landed on `add-playwright-e2e` branch. User chose "Merge to main first (no PR) then archive". Harness blocked the push from this session; user runs manually:
-   ```bash
-   git -C ~/Developer/proj/claude-dash checkout main \
-     && git merge --ff-only add-playwright-e2e \
-     && git push origin main
-   ```
-3. **Polish**: screenshots of the menubar + dashboard into `docs/screenshots/`, slot into README hero.
+1. **Polish**: screenshots of the menubar + dashboard into `docs/screenshots/`, slot into README hero.
 
 ## Prior session transcript
 
