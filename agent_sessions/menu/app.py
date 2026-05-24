@@ -13,9 +13,9 @@ MAX_RUNNING_ITEMS = 20
 MAX_RECENT_ITEMS = 20
 
 
-class ClaudeSessionApp(rumps.App):
+class AgentSessionApp(rumps.App):
     def __init__(self) -> None:
-        super().__init__("CC", quit_button=None)
+        super().__init__("AS", quit_button=None)
         # A menu click always spawns a GUI window; never a multiplexer pane
         # (even if the menubar process was launched from inside tmux/zellij).
         self._launcher = core_launcher.gui_window()
@@ -35,7 +35,7 @@ class ClaudeSessionApp(rumps.App):
         running_sessions.sort(key=lambda s: s.mtime, reverse=True)
         recent = [s for s in all_sess if s.session_id not in running_map][:MAX_RECENT_ITEMS]
 
-        self.title = f"CC{len(running_sessions)}" if running_sessions else "CC"
+        self.title = f"AS{len(running_sessions)}" if running_sessions else "AS"
 
         self.menu.clear()
         if running_sessions:
@@ -108,7 +108,7 @@ class ClaudeSessionApp(rumps.App):
             return
         log_failure(context, msg)
         try:
-            rumps.notification(title="Claude session", subtitle=context, message=msg)
+            rumps.notification(title="Agent session", subtitle=context, message=msg)
         except Exception:
             pass
 
@@ -117,7 +117,7 @@ class ClaudeSessionApp(rumps.App):
 
 
 def main() -> None:
-    ClaudeSessionApp().run()
+    AgentSessionApp().run()
 
 
 if __name__ == "__main__":
