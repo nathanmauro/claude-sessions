@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 
 RESUME_RE = re.compile(r"(?:^|\s)claude\b.*?--resume[=\s]+([a-f0-9-]{36})")
 GHOSTTY_BIN = "/Applications/Ghostty.app/Contents/MacOS/ghostty"

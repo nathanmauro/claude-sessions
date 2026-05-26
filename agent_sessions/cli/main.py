@@ -11,10 +11,9 @@ import tempfile
 from pathlib import Path
 
 from ..core import launcher as core_launcher
-from ..core import sessions
+from ..core import sessions, transcript
 from ..core.sessions import age_from_iso
 from ..menu import processes
-
 
 _C = {
     "reset":  "\x1b[0m",
@@ -323,6 +322,21 @@ def _cmd_dash(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_view(path_str: str) -> int:
+    path = Path(path_str).expanduser()
+    if not path.is_file():
+        print(f"no such file: {path}", file=sys.stderr)
+        return 2
+    try:
+        body = transcript.render_markdown(path)
+    except FileNotFoundError as e:
+        print(str(e), file=sys.stderr)
+        return 2
+    if body:
+        print(body)
+    return 0
+
+
 def _cmd_index(args: argparse.Namespace) -> int:
     from ..core import db
     from ..core.config import PROJECTS_DIR
@@ -352,7 +366,12 @@ def main(argv: list[str] | None = None) -> int:
         prog="agent-sessions",
         description="Browse, resume, and visualize Claude Code sessions.",
     )
-    sub = p.add_subparsers(dest="cmd", required=True)
+    p.add_argument(
+        "--view",
+        metavar="PATH",
+        help="render a JSONL transcript file as markdown and exit",
+    )
+    sub = p.add_subparsers(dest="cmd")
 
     p_ls = sub.add_parser("ls", help="list known sessions")
     p_ls.add_argument("--json", action="store_true")
@@ -416,6 +435,10 @@ def main(argv: list[str] | None = None) -> int:
     p_index.set_defaults(func=_cmd_index)
 
     args = p.parse_args(argv)
+    if args.view:
+        return _cmd_view(args.view)
+    if args.cmd is None:
+        return _cmd_pick(argparse.Namespace(exec="smart", launcher=None))
     return args.func(args)
 
 

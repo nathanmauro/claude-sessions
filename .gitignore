@@ -21,6 +21,8 @@ web/dist/
 
 # local state
 .agent-sessions/
+.claude/
+.intent/
 *.db
 *.db-shm
 *.db-wal
