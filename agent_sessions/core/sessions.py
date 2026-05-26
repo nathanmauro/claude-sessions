@@ -121,8 +121,8 @@ def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
         return None
     try:
         cur = conn.execute(
-            "SELECT session_id, project_dir, cwd, start_ts, end_ts, title, "
-            "first_prompt, last_prompt, user_msg_count, mtime, size "
+            "SELECT session_id, source, project_dir, cwd, start_ts, end_ts, "
+            "title, first_prompt, last_prompt, user_msg_count, mtime, size "
             "FROM sessions"
         )
         rows = cur.fetchall()
@@ -135,17 +135,18 @@ def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
         out.append(
             Session(
                 session_id=r[0],
-                project_dir=r[1] or "",
-                cwd=r[2] or "",
+                source=r[1] or "claude",
+                project_dir=r[2] or "",
+                cwd=r[3] or "",
                 path="",
-                mtime=float(r[9] or 0.0),
-                size=int(r[10] or 0),
-                start_ts=r[3],
-                end_ts=r[4],
-                title=r[5],
-                first_prompt=r[6],
-                last_prompt=r[7],
-                user_msg_count=int(r[8] or 0),
+                mtime=float(r[10] or 0.0),
+                size=int(r[11] or 0),
+                start_ts=r[4],
+                end_ts=r[5],
+                title=r[6],
+                first_prompt=r[7],
+                last_prompt=r[8],
+                user_msg_count=int(r[9] or 0),
             )
         )
     return out

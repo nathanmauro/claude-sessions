@@ -51,7 +51,8 @@ def main() -> None:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript("""
             CREATE TABLE sessions (
-                session_id TEXT PRIMARY KEY,
+                source TEXT NOT NULL DEFAULT 'claude',
+                session_id TEXT NOT NULL,
                 project_dir TEXT,
                 cwd TEXT,
                 start_ts TEXT,
@@ -65,10 +66,13 @@ def main() -> None:
                 cache_create_tokens INTEGER,
                 cache_read_tokens INTEGER,
                 mtime REAL,
-                size INTEGER
+                size INTEGER,
+                PRIMARY KEY (source, session_id)
             );
             CREATE TABLE tasks (
-                session_id TEXT, task_id TEXT, subject TEXT,
+                source TEXT NOT NULL DEFAULT 'claude',
+                session_id TEXT NOT NULL,
+                task_id TEXT, subject TEXT,
                 description TEXT, status TEXT
             );
             CREATE TABLE project_meta (
@@ -80,8 +84,13 @@ def main() -> None:
             sid = f"{sid_prefix}-{Path(cwd).name}"
             start_ts, end_ts, mtime = hours_ago(age)
             conn.execute(
-                "INSERT INTO sessions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (sid, cwd.replace("/", "-")[1:], cwd, start_ts, end_ts,
+                """INSERT INTO sessions
+                    (source, session_id, project_dir, cwd, start_ts, end_ts,
+                     title, first_prompt, last_prompt, user_msg_count,
+                     input_tokens, output_tokens, cache_create_tokens,
+                     cache_read_tokens, mtime, size)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                ("claude", sid, cwd.replace("/", "-")[1:], cwd, start_ts, end_ts,
                  title, "", "", msgs, itok, otok, 0, ctok, mtime, 8192),
             )
         conn.commit()
