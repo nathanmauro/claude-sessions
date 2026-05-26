@@ -4,9 +4,9 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sqlite3
-from dataclasses import dataclass, asdict
+from collections.abc import Iterator
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterator
 
 from .config import DB_PATH, PROJECTS_DIR
 
@@ -25,6 +25,7 @@ class Session:
     first_prompt: str | None = None
     last_prompt: str | None = None
     user_msg_count: int = 0
+    source: str = "claude"
 
     @property
     def project_name(self) -> str:
@@ -156,13 +157,15 @@ def list_sessions(projects_dir: Path = PROJECTS_DIR) -> list[Session]:
         if rows is not None:
             rows.sort(key=lambda s: s.mtime, reverse=True)
             return rows
-    if not projects_dir.exists():
-        return []
+    from .sources import get_sources
+
     out: list[Session] = []
-    for jsonl in projects_dir.rglob("*.jsonl"):
-        s = parse_session_file(jsonl)
-        if s is not None:
-            out.append(s)
+    for source in get_sources():
+        for jsonl in source.iter_session_files():
+            s = parse_session_file(jsonl)
+            if s is not None:
+                s.source = source.name
+                out.append(s)
     out.sort(key=lambda s: s.mtime, reverse=True)
     return out
 
@@ -175,7 +178,7 @@ def age_from_iso(iso_ts: str | None) -> str:
         ts = dt.datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
     except ValueError:
         return "-"
-    delta = dt.datetime.now(dt.timezone.utc) - ts
+    delta = dt.datetime.now(dt.UTC) - ts
     secs = int(delta.total_seconds())
     if secs < 60:
         return f"{secs}s"
@@ -187,9 +190,10 @@ def age_from_iso(iso_ts: str | None) -> str:
 
 
 def iter_session_paths(projects_dir: Path = PROJECTS_DIR) -> Iterator[Path]:
-    if not projects_dir.exists():
-        return iter(())
-    return projects_dir.rglob("*.jsonl")
+    from .sources import get_sources
+
+    for source in get_sources():
+        yield from source.iter_session_files()
 
 
 def session_display_title(s: Session, maxlen: int = 60) -> str:

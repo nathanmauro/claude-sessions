@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import datetime as dt
 import sqlite3
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, Iterator
 
 from .config import DB_PATH, PROJECTS_DIR
 from .models import SearchResult, Session, Task
-from .parser import parse_session, parse_ts
+from .parser import parse_ts
+from .sources import get_sources
 
 
 def build_project_index(sessions: Iterable[Session]) -> dict[str, tuple[str, str]]:
@@ -45,6 +45,7 @@ def _row_to_session(r, conn) -> Session:
         project_dir=r["project_dir"] or "",
         cwd=r["cwd"] or "",
         path=PROJECTS_DIR / (r["project_dir"] or "") / f"{sid}.jsonl",
+        source="claude",
         start_ts=parse_ts(r["start_ts"]),
         end_ts=parse_ts(r["end_ts"]),
         title=r["title"] or "",
@@ -64,7 +65,6 @@ def load_sessions(
     since=None,
     until=None,
 ) -> list[Session]:
-    import datetime as _dt
 
     with get_db() as conn:
         q = "SELECT * FROM sessions"
@@ -169,18 +169,19 @@ def index_all(projects_dir: Path = PROJECTS_DIR) -> list[str]:
     init_db()
     changed: list[str] = []
     with get_db() as conn:
-        for proj in projects_dir.iterdir():
-            if not proj.is_dir():
-                continue
-            for jsonl in proj.glob("*.jsonl"):
-                stat = jsonl.stat()
+        for source in get_sources():
+            for jsonl in source.iter_session_files():
+                try:
+                    stat = jsonl.stat()
+                except OSError:
+                    continue
                 cur = conn.execute(
                     "SELECT mtime, size FROM sessions WHERE session_id = ?",
                     (jsonl.stem,),
                 ).fetchone()
                 if cur and cur["mtime"] == stat.st_mtime and cur["size"] == stat.st_size:
                     continue
-                sess = parse_session(jsonl)
+                sess = source.parse(jsonl)
                 if not sess:
                     continue
                 conn.execute("DELETE FROM messages_fts WHERE session_id = ?", (sess.session_id,))
