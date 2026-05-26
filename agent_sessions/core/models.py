@@ -23,6 +23,7 @@ class Session(BaseModel):
     project_dir: str
     cwd: str
     path: Path
+    source: str = "claude"
     start_ts: dt.datetime | None = None
     end_ts: dt.datetime | None = None
     title: str = ""
@@ -67,7 +68,7 @@ class UsageTotals(BaseModel):
     session_count: int = 0
 
     @classmethod
-    def from_sessions(cls, sessions: list[Session]) -> "UsageTotals":
+    def from_sessions(cls, sessions: list[Session]) -> UsageTotals:
         inp = sum(s.input_tokens for s in sessions)
         out = sum(s.output_tokens for s in sessions)
         cc = sum(s.cache_create_tokens for s in sessions)
