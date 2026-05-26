@@ -4,9 +4,10 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sqlite3
-from dataclasses import dataclass, asdict
+import sys
+from collections.abc import Iterator
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterator
 
 from .config import DB_PATH, PROJECTS_DIR
 
@@ -25,6 +26,7 @@ class Session:
     first_prompt: str | None = None
     last_prompt: str | None = None
     user_msg_count: int = 0
+    source: str = "claude"
 
     @property
     def project_name(self) -> str:
@@ -120,8 +122,8 @@ def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
         return None
     try:
         cur = conn.execute(
-            "SELECT session_id, project_dir, cwd, start_ts, end_ts, title, "
-            "first_prompt, last_prompt, user_msg_count, mtime, size "
+            "SELECT session_id, source, project_dir, cwd, start_ts, end_ts, "
+            "title, first_prompt, last_prompt, user_msg_count, mtime, size "
             "FROM sessions"
         )
         rows = cur.fetchall()
@@ -134,35 +136,89 @@ def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
         out.append(
             Session(
                 session_id=r[0],
-                project_dir=r[1] or "",
-                cwd=r[2] or "",
+                source=r[1] or "claude",
+                project_dir=r[2] or "",
+                cwd=r[3] or "",
                 path="",
-                mtime=float(r[9] or 0.0),
-                size=int(r[10] or 0),
-                start_ts=r[3],
-                end_ts=r[4],
-                title=r[5],
-                first_prompt=r[6],
-                last_prompt=r[7],
-                user_msg_count=int(r[8] or 0),
+                mtime=float(r[10] or 0.0),
+                size=int(r[11] or 0),
+                start_ts=r[4],
+                end_ts=r[5],
+                title=r[6],
+                first_prompt=r[7],
+                last_prompt=r[8],
+                user_msg_count=int(r[9] or 0),
             )
         )
     return out
 
 
+def _newest_project_file_mtime(projects_dir: Path) -> float | None:
+    newest: float | None = None
+    try:
+        for path in projects_dir.rglob("*.jsonl"):
+            try:
+                mtime = path.stat().st_mtime
+            except OSError:
+                continue
+            if newest is None or mtime > newest:
+                newest = mtime
+    except OSError:
+        return newest
+    return newest
+
+
+def _newest_index_mtime(db_path: Path) -> float | None:
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.OperationalError:
+        return None
+    try:
+        row = conn.execute("SELECT max(mtime) FROM sessions").fetchone()
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        conn.close()
+    if not row or row[0] is None:
+        return None
+    return float(row[0])
+
+
+def _refresh_stale_index(projects_dir: Path, db_path: Path) -> bool:
+    if not db_path.exists() or not projects_dir.exists():
+        return True
+    project_mtime = _newest_project_file_mtime(projects_dir)
+    if project_mtime is None:
+        return True
+    index_mtime = _newest_index_mtime(db_path)
+    if index_mtime is not None and index_mtime >= project_mtime:
+        return True
+    try:
+        from . import db
+
+        db.index_all(projects_dir)
+    except Exception as e:
+        print(f"index refresh failed: {e}", file=sys.stderr)
+        return False
+    return True
+
+
 def list_sessions(projects_dir: Path = PROJECTS_DIR) -> list[Session]:
     if DB_PATH.exists():
-        rows = load_sessions_from_index(DB_PATH)
-        if rows is not None:
-            rows.sort(key=lambda s: s.mtime, reverse=True)
-            return rows
-    if not projects_dir.exists():
-        return []
+        if _refresh_stale_index(projects_dir, DB_PATH):
+            rows = load_sessions_from_index(DB_PATH)
+            if rows is not None:
+                rows.sort(key=lambda s: s.mtime, reverse=True)
+                return rows
+    from .sources import get_sources
+
     out: list[Session] = []
-    for jsonl in projects_dir.rglob("*.jsonl"):
-        s = parse_session_file(jsonl)
-        if s is not None:
-            out.append(s)
+    for source in get_sources():
+        for jsonl in source.iter_session_files():
+            s = parse_session_file(jsonl)
+            if s is not None:
+                s.source = source.name
+                out.append(s)
     out.sort(key=lambda s: s.mtime, reverse=True)
     return out
 
@@ -175,7 +231,7 @@ def age_from_iso(iso_ts: str | None) -> str:
         ts = dt.datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
     except ValueError:
         return "-"
-    delta = dt.datetime.now(dt.timezone.utc) - ts
+    delta = dt.datetime.now(dt.UTC) - ts
     secs = int(delta.total_seconds())
     if secs < 60:
         return f"{secs}s"
@@ -187,9 +243,10 @@ def age_from_iso(iso_ts: str | None) -> str:
 
 
 def iter_session_paths(projects_dir: Path = PROJECTS_DIR) -> Iterator[Path]:
-    if not projects_dir.exists():
-        return iter(())
-    return projects_dir.rglob("*.jsonl")
+    from .sources import get_sources
+
+    for source in get_sources():
+        yield from source.iter_session_files()
 
 
 def session_display_title(s: Session, maxlen: int = 60) -> str:

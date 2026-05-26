@@ -1,8 +1,6 @@
 """Tests for backcompat plumbing: env-var fallback, cache migration, legacy CLI alias."""
 from __future__ import annotations
 
-import sys
-
 import pytest
 
 from agent_sessions.core import _compat
