@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Capture docs/screenshots/menubar.png by booting `agent-sessions menu` against
+# Capture docs/screenshots/menubar.png by booting `agentseq menu` against
 # the demo SQLite index, opening the dropdown via AppleScript, and screencapturing
 # the region.
 #
 # Requires:
-#   - .venv/bin/agent-sessions (pip install -e '.[menu]')
+#   - .venv/bin/agentseq (pip install -e '.[menu]')
 #   - Accessibility permission for the terminal running this script
 #     (System Settings → Privacy & Security → Accessibility)
 set -euo pipefail
@@ -12,14 +12,14 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-if [[ ! -x .venv/bin/agent-sessions ]]; then
-  echo "error: .venv/bin/agent-sessions not found." >&2
+if [[ ! -x .venv/bin/agentseq ]]; then
+  echo "error: .venv/bin/agentseq not found." >&2
   echo "  run: uv venv && uv pip install -e '.[menu]'" >&2
   exit 1
 fi
 
-DEMO_CACHE="/tmp/demo-agent-sessions"
-export AGENT_SESSIONS_CACHE="$DEMO_CACHE"
+DEMO_CACHE="/tmp/demo-agentseq"
+export AGENTSEQ_CACHE="$DEMO_CACHE"
 
 # Pre-flight: verify Accessibility permission. Test against Finder which always
 # has a menu bar. Error -25211 == "not allowed assistive access".
@@ -40,7 +40,7 @@ fi
 python3 web/scripts/seed-demo-db.py >&2
 
 # rumps registers as the python interpreter — boot it and remember the PID.
-.venv/bin/agent-sessions menu >/tmp/agent-sessions-menu.log 2>&1 &
+.venv/bin/agentseq menu >/tmp/agentseq-menu.log 2>&1 &
 MENU_PID=$!
 trap 'kill "$MENU_PID" 2>/dev/null || true' EXIT
 
@@ -49,7 +49,7 @@ sleep 2
 
 if ! kill -0 "$MENU_PID" 2>/dev/null; then
   echo "error: menu process exited early. log:" >&2
-  cat /tmp/agent-sessions-menu.log >&2
+  cat /tmp/agentseq-menu.log >&2
   exit 1
 fi
 

@@ -1,4 +1,4 @@
-# agent-sessions for zellij
+# agentseq for zellij
 
 One-keystroke session picker for [zellij](https://zellij.dev/). Press `Alt + p`
 to open an fzf picker in a transient pane; choose a session and `smart`
@@ -14,7 +14,7 @@ Paste this into `~/.config/zellij/config.kdl` (or merge into your existing
 keybinds {
   shared_except "locked" {
     bind "Alt p" {
-      Run "agent-sessions" "pick" "--exec" "smart" {
+      Run "agentseq" "pick" "--exec" "smart" {
         close_on_exit true
       }
     }
@@ -27,8 +27,8 @@ config changes without restarting your session).
 
 ## Requirements
 
-- `agent-sessions` on `$PATH` — `pipx install agent-sessions` or
-  `uv tool install agent-sessions`
+- `agentseq` on `$PATH` — `pipx install agentseq` or
+  `uv tool install agentseq`
 - `fzf` on `$PATH` — `brew install fzf`
 
 `Run` opens the command directly in a transient pane (no shell wrapper

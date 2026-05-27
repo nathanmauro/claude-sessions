@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agent_sessions.core.parser import (
+from agentseq.core.parser import (
     decode_project_dir,
     extract_text,
     is_real_user_prompt,

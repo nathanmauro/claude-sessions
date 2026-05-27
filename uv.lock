@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.11"
 
 [[package]]
-name = "agent-sessions"
+name = "agentseq"
 version = "0.6.0"
 source = { editable = "." }
 

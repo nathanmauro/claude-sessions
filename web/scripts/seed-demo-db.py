@@ -4,7 +4,7 @@
 Used by web/scripts/capture-cli.sh and web/scripts/capture-menu.sh so the
 CLI and menubar screenshots show deterministic, PII-free content.
 
-Writes to $AGENT_SESSIONS_CACHE/index.db (defaulting to /tmp/demo-agent-sessions/).
+Writes to $AGENTSEQ_CACHE/index.db (defaulting to /tmp/demo-agentseq/).
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 CACHE_DIR = Path(
-    os.environ.get("AGENT_SESSIONS_CACHE", "/tmp/demo-agent-sessions")
+    os.environ.get("AGENTSEQ_CACHE", "/tmp/demo-agentseq")
 ).expanduser()
 DB_PATH = CACHE_DIR / "index.db"
 

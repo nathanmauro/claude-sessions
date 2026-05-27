@@ -3,7 +3,7 @@ from __future__ import annotations
 
 _HINT = (
     "no launcher available for this environment. "
-    "Set AGENT_SESSIONS_LAUNCHER (or legacy CLAUDE_SESSIONS_LAUNCHER) to one of: ghostty, tmux, zellij. "
+    "Set AGENTSEQ_LAUNCHER to one of: ghostty, tmux, zellij. "
     "Or open a terminal manually and run: claude --resume <session-id>"
 )
 

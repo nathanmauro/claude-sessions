@@ -1,4 +1,4 @@
-"""Unified CLI for claude-sessions: ls / running / open / focus / smart / show / pick / menu / dash / index."""
+"""Unified CLI for agentseq: ls / running / open / focus / smart / show / pick / menu / dash / index."""
 from __future__ import annotations
 
 import argparse
@@ -243,7 +243,7 @@ def _cmd_pick(args: argparse.Namespace) -> int:
 
     rows = [_row(s) for s in items]
 
-    with tempfile.TemporaryDirectory(prefix="agent-sessions-pick-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="agentseq-pick-") as tmp:
         for s in items:
             (Path(tmp) / f"{s.session_id}.txt").write_text(_format_show_short(s))
         preview_cmd = f"cat {shlex.quote(tmp)}/{{1}}.txt"
@@ -252,7 +252,6 @@ def _cmd_pick(args: argparse.Namespace) -> int:
             "--ansi",
             "--delimiter=\t",
             "--with-nth=2",
-            "--nth=2",
             "--preview", preview_cmd,
             "--preview-window=right:55%:wrap",
             "--prompt=session> ",
@@ -301,7 +300,7 @@ def _cmd_menu(_: argparse.Namespace) -> int:
         from ..menu.app import main as menu_main
     except ImportError as e:
         print(f"menu extra not installed: {e}", file=sys.stderr)
-        print("install with: pip install 'agent-sessions[menu]'", file=sys.stderr)
+        print("install with: pip install 'agentseq[menu]'", file=sys.stderr)
         return 5
     menu_main()
     return 0
@@ -315,7 +314,7 @@ def _cmd_dash(args: argparse.Namespace) -> int:
         from ..dash.server import app
     except ImportError as e:
         print(f"dash extra not installed: {e}", file=sys.stderr)
-        print("install with: pip install 'agent-sessions[dash]'", file=sys.stderr)
+        print("install with: pip install 'agentseq[dash]'", file=sys.stderr)
         return 5
     host = args.host or HOST
     port = args.port or PORT
@@ -349,7 +348,7 @@ def _find_session(needle: str):
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        prog="agent-sessions",
+        prog="agentseq",
         description="Browse, resume, and visualize Claude Code sessions.",
     )
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -366,7 +365,7 @@ def main(argv: list[str] | None = None) -> int:
     launcher_choices = ["ghostty", "tmux", "zellij", "generic"]
     launcher_help = (
         "override launcher backend (default: autodetect $ZELLIJ / $TMUX / Ghostty.app; "
-        "also honors $AGENT_SESSIONS_LAUNCHER env var)"
+        "also honors $AGENTSEQ_LAUNCHER env var)"
     )
 
     p_open = sub.add_parser("open", help="open session in a new terminal window or pane")
@@ -420,9 +419,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def legacy_main() -> None:
-    """Entrypoint for the deprecated ``claude-sessions`` command name."""
+    """Entrypoint for the deprecated ``claude-sessions`` / ``agent-sessions`` command names."""
+    import os
+    cmd = os.path.basename(sys.argv[0])
     print(
-        "warning: 'claude-sessions' is deprecated; use 'agent-sessions'",
+        f"warning: '{cmd}' is deprecated; use 'agentseq'",
         file=sys.stderr,
     )
     sys.exit(main())
