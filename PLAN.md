@@ -7,8 +7,9 @@ rules) and [`README.md`](README.md) (user-facing docs).
 **Repo:** https://github.com/nathanmauro/claude-sessions
 **Branch:** `main`
 **Version:** 0.7.0
-**Tests:** 78 passing (`uv run pytest`)
+**Tests:** 83 passing (`uv run pytest`)
 **Lint:** clean (`uv run ruff check agentseq/ tests/`)
+**CI:** [![CI](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml/badge.svg)](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml)
 **Last touched:** 2026-05-27
 
 ---
@@ -23,6 +24,7 @@ rules) and [`README.md`](README.md) (user-facing docs).
 | — | Rename `claude-sessions` → `agent-sessions` → `agentseq`. Legacy aliases preserved. Cache dir auto-migrated. | [#6](https://github.com/nathanmauro/claude-sessions/pull/6), [#8](https://github.com/nathanmauro/claude-sessions/pull/8) |
 | — | Deterministic screenshots (VHS tapes) for dashboard, CLI, and menubar. | `99a80ab` |
 | 4 | Textual TUI — live agent monitor, session browser with FTS, detail screen (transcript + tasks), combine workspace, jobs queue placeholder. SVG screenshot, README badges + full TUI docs. All ruff lint debt cleared. v0.7.0. | [#9](https://github.com/nathanmauro/claude-sessions/pull/9) |
+| 5 | CI pipeline (`.github/workflows/test.yml`, Python 3.11+3.12 matrix) + `agentseq search` CLI command (FTS5, tabular + `--json`). README CI badge. 83 tests. | [#11](https://github.com/nathanmauro/claude-sessions/pull/11) |
 
 ---
 
@@ -70,15 +72,9 @@ Use Textual's `run_test()` / pilot API — no real terminal needed.
 - [ ] README section: "Searching from elsewhere" with `--host 0.0.0.0` + LAN warning
 - [ ] No auth in this phase
 
-### CLI search command
+### ~~CLI search command~~ — shipped in [#11](https://github.com/nathanmauro/claude-sessions/pull/11)
 
-- [ ] `agentseq search "<query>"` — CLI exposure of the SQLite FTS5 search
-- [ ] Output: session ID, title, snippet, date (tabular + `--json`)
-
-### CI pipeline
-
-- [ ] `.github/workflows/test.yml` — pytest + ruff on push/PR
-- [ ] Badge in README
+### ~~CI pipeline~~ — shipped in [#11](https://github.com/nathanmauro/claude-sessions/pull/11)
 
 ---
 
@@ -114,7 +110,7 @@ agentseq/
     events.py              # SSE event bus
     models.py
   cli/                     # argparse dispatcher; no GUI deps
-    main.py                # ls/running/show/pick/open/focus/smart/tui/menu/dash/index
+    main.py                # ls/running/show/pick/search/open/focus/smart/tui/menu/dash/index
   tui/                     # Textual terminal UI (requires [tui] extra)
     app.py                 # AgentSeqApp — 4-tab TabbedContent
     live.py                # poll `claude agents --json` for live agents
@@ -136,7 +132,7 @@ agentseq/
 web/                       # Vite + React + TanStack Query frontend
 tests/
   test_launcher.py         # 27 tests
-  test_cli.py              # 12+ tests
+  test_cli.py              # 17+ tests (show, pick, search)
   test_compat.py           # backcompat helpers
   test_parser.py           # JSONL parser
 share/
@@ -151,7 +147,7 @@ share/
 ## Validation commands
 
 ```bash
-uv run pytest -x -q                    # 78 tests
+uv run pytest -x -q                    # 83 tests
 uv run ruff check agentseq/ tests/     # lint (zero warnings)
 uv run agentseq ls                     # smoke
 uv run agentseq tui                    # TUI smoke (needs TTY)
