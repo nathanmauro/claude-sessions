@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 WEB_DIST = ROOT / "web" / "dist"
 WEB_INDEX = WEB_DIST / "index.html"
 
-app = FastAPI(title="agent-sessions", docs_url=None, redoc_url=None)
+app = FastAPI(title="agentseq", docs_url=None, redoc_url=None)
 
 
 @app.on_event("startup")

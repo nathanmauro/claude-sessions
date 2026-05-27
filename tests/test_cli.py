@@ -7,8 +7,8 @@ import subprocess
 
 import pytest
 
-from agent_sessions.cli import main as cli
-from agent_sessions.core.sessions import Session
+from agentseq.cli import main as cli
+from agentseq.core.sessions import Session
 
 
 def _make_session(**overrides) -> Session:

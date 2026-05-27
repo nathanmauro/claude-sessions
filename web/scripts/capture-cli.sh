@@ -3,7 +3,7 @@
 #
 # Runs from repo root. Requires:
 #   - vhs (brew install vhs)
-#   - .venv/bin/agent-sessions (pip install -e '.[menu]')
+#   - .venv/bin/agentseq (pip install -e '.[menu]')
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -14,18 +14,18 @@ if ! command -v vhs >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ ! -x .venv/bin/agent-sessions ]]; then
-  echo "error: .venv/bin/agent-sessions not found." >&2
+if [[ ! -x .venv/bin/agentseq ]]; then
+  echo "error: .venv/bin/agentseq not found." >&2
   echo "  run: uv venv && uv pip install -e '.[menu]'" >&2
   exit 1
 fi
 
-DEMO_CACHE="/tmp/demo-agent-sessions"
-export AGENT_SESSIONS_CACHE="$DEMO_CACHE"
+DEMO_CACHE="/tmp/demo-agentseq"
+export AGENTSEQ_CACHE="$DEMO_CACHE"
 
 python3 web/scripts/seed-demo-db.py >&2
 
-# Put the venv's bin first so `agent-sessions` resolves to it inside vhs.
+# Put the venv's bin first so `agentseq` resolves to it inside vhs.
 export PATH="$REPO_ROOT/.venv/bin:$PATH"
 
 vhs docs/screenshots/cli.tape

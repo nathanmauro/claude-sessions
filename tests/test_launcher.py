@@ -5,8 +5,8 @@ import subprocess
 
 import pytest
 
-from agent_sessions.core import launcher as core_launcher
-from agent_sessions.core.launcher import (
+from agentseq.core import launcher as core_launcher
+from agentseq.core.launcher import (
     GenericLauncher,
     GhosttyLauncher,
     TmuxLauncher,
@@ -26,7 +26,7 @@ def fake_claude_bin(monkeypatch):
     # each module's local reference too.
     for mod_name in ("ghostty", "tmux", "zellij"):
         mod = __import__(
-            f"agent_sessions.core.launcher.{mod_name}", fromlist=["claude_bin"]
+            f"agentseq.core.launcher.{mod_name}", fromlist=["claude_bin"]
         )
         monkeypatch.setattr(mod, "claude_bin", lambda: "/bin/claude")
     return "/bin/claude"
@@ -199,7 +199,7 @@ def test_zellij_focus_returns_unsupported(fake_run):
 def test_generic_open_new_returns_actionable_error():
     ok, msg = GenericLauncher().open_new("/tmp", "sid")
     assert not ok
-    assert "AGENT_SESSIONS_LAUNCHER" in msg
+    assert "AGENTSEQ_LAUNCHER" in msg
 
 
 def test_generic_focus_returns_unsupported():
@@ -233,7 +233,7 @@ def test_get_launcher_unknown_raises():
 
 
 def _clear_env(monkeypatch):
-    for var in ("AGENT_SESSIONS_LAUNCHER", "CLAUDE_SESSIONS_LAUNCHER", "ZELLIJ", "TMUX"):
+    for var in ("AGENTSEQ_LAUNCHER", "AGENT_SESSIONS_LAUNCHER", "CLAUDE_SESSIONS_LAUNCHER", "ZELLIJ", "TMUX"):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -270,7 +270,7 @@ def test_autodetect_honors_env_override(monkeypatch, tmp_path):
     _clear_env(monkeypatch)
     monkeypatch.setenv("ZELLIJ", "1")
     monkeypatch.setenv("TMUX", "x")
-    monkeypatch.setenv("AGENT_SESSIONS_LAUNCHER", "tmux")
+    monkeypatch.setenv("AGENTSEQ_LAUNCHER", "tmux")
     monkeypatch.setattr(detect, "GHOSTTY_APP", str(tmp_path))
     assert isinstance(autodetect(), TmuxLauncher)
 
@@ -296,7 +296,7 @@ def test_gui_window_falls_back_to_generic_without_ghostty(monkeypatch, tmp_path)
 def test_gui_window_rejects_tmux_override(monkeypatch, tmp_path):
     """gui_window only honors GUI-safe overrides (ghostty, generic)."""
     _clear_env(monkeypatch)
-    monkeypatch.setenv("AGENT_SESSIONS_LAUNCHER", "tmux")
+    monkeypatch.setenv("AGENTSEQ_LAUNCHER", "tmux")
     monkeypatch.setattr(detect, "GHOSTTY_APP", str(tmp_path))
     # The override is ignored; falls through to the Ghostty path
     assert isinstance(gui_window(), GhosttyLauncher)
@@ -304,6 +304,6 @@ def test_gui_window_rejects_tmux_override(monkeypatch, tmp_path):
 
 def test_gui_window_honors_generic_override(monkeypatch, tmp_path):
     _clear_env(monkeypatch)
-    monkeypatch.setenv("AGENT_SESSIONS_LAUNCHER", "generic")
+    monkeypatch.setenv("AGENTSEQ_LAUNCHER", "generic")
     monkeypatch.setattr(detect, "GHOSTTY_APP", str(tmp_path))
     assert isinstance(gui_window(), GenericLauncher)

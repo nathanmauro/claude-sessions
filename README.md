@@ -1,4 +1,4 @@
-# agent-sessions
+# agentseq
 
 Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) sessions from three surfaces — terminal CLI, macOS menubar, and a local web dashboard — all backed by a shared SQLite index of `~/.claude/projects/*.jsonl`.
 
@@ -14,49 +14,49 @@ Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs
       <em>Menubar: live count of running sessions, recents grouped by project.</em>
     </td>
     <td width="50%" valign="top">
-      <img src="docs/screenshots/cli.png" alt="CLI — agent-sessions ls" width="100%"><br>
-      <em>CLI: <code>agent-sessions ls</code> for scripting and quick lookup.</em>
+      <img src="docs/screenshots/cli.png" alt="CLI — agentseq ls" width="100%"><br>
+      <em>CLI: <code>agentseq ls</code> for scripting and quick lookup.</em>
     </td>
   </tr>
 </table>
 
 
-> **Status:** alpha (0.3.0). Mac-first. Linux/Windows untested for the menubar surface; CLI + dash should work cross-platform once a non-Ghostty launcher path is added.
+> **Status:** alpha (0.6.0). Mac-first. Linux/Windows untested for the menubar surface; CLI + dash should work cross-platform once a non-Ghostty launcher path is added.
 
-## Migrating from `claude-sessions`
+## Migrating from `agent-sessions` / `claude-sessions`
 
-This project was renamed from `claude-sessions` to `agent-sessions`. Existing setups keep working:
+This project was renamed from `claude-sessions` → `agent-sessions` → `agentseq`. Existing setups keep working:
 
-- The legacy `claude-sessions` CLI command is still installed as a deprecated alias.
-- Legacy `CLAUDE_SESSIONS_*` environment variables are still honored when the new `AGENT_SESSIONS_*` equivalents are not set.
-- The cache dir is auto-migrated from `~/.claude-sessions/` to `~/.agent-sessions/` on first run.
+- The legacy `agent-sessions` and `claude-sessions` CLI commands are still installed as deprecated aliases.
+- Legacy `AGENT_SESSIONS_*` and `CLAUDE_SESSIONS_*` environment variables are still honored when the new `AGENTSEQ_*` equivalents are not set.
+- The cache dir is auto-migrated from `~/.agent-sessions/` or `~/.claude-sessions/` to `~/.agentseq/` on first run.
 
-New users and new docs should prefer `agent-sessions` and `AGENT_SESSIONS_*`.
+New users and new docs should prefer `agentseq` and `AGENTSEQ_*`.
 
 ## Why
 
-Claude Code already records every session as JSONL under `~/.claude/projects/`, but the built-in `claude --resume` picker only shows the current directory and doesn't surface running processes or token usage. `agent-sessions` indexes that data once and serves it from whichever interface fits the moment:
+Claude Code already records every session as JSONL under `~/.claude/projects/`, but the built-in `claude --resume` picker only shows the current directory and doesn't surface running processes or token usage. `agentseq` indexes that data once and serves it from whichever interface fits the moment:
 
 | Surface | Best for | Command |
 | --- | --- | --- |
-| **CLI** | scripting, fzf piping, quick lookup | `agent-sessions ls`, `... open <sid>`, `... smart <sid>` |
-| **Menubar** | always-on glance + one-click resume | `agent-sessions menu` |
-| **Dash** | reviewing a day's work, search, token usage | `agent-sessions dash` |
+| **CLI** | scripting, fzf piping, quick lookup | `agentseq ls`, `... open <sid>`, `... smart <sid>` |
+| **Menubar** | always-on glance + one-click resume | `agentseq menu` |
+| **Dash** | reviewing a day's work, search, token usage | `agentseq dash` |
 
 ## Install
 
 ```bash
 # CLI only (no GUI deps)
-pip install agent-sessions
+pip install agentseq
 
 # CLI + macOS menubar
-pip install 'agent-sessions[menu]'
+pip install 'agentseq[menu]'
 
 # CLI + web dashboard (FastAPI + React)
-pip install 'agent-sessions[dash]'
+pip install 'agentseq[dash]'
 
 # Everything
-pip install 'agent-sessions[all]'
+pip install 'agentseq[all]'
 ```
 
 Or from source with [`uv`](https://docs.astral.sh/uv/):
@@ -65,27 +65,27 @@ Or from source with [`uv`](https://docs.astral.sh/uv/):
 git clone https://github.com/nathanmauro/claude-sessions
 cd claude-sessions
 uv sync --all-extras
-uv run agent-sessions ls
+uv run agentseq ls
 ```
 
 ## Quick start
 
 ```bash
 # Build a SQLite index of every session under ~/.claude/projects/
-agent-sessions index
+agentseq index
 
 # List the 50 most-recent sessions
-agent-sessions ls
+agentseq ls
 
 # Smart-resume: focus the terminal if it's already running, else open a new Ghostty window
-agent-sessions smart <session-id-prefix>
+agentseq smart <session-id-prefix>
 
 # Launch the macOS menubar (requires [menu] extra)
-agent-sessions menu
+agentseq menu
 
 # Launch the local dashboard at http://127.0.0.1:8765 (requires [dash] extra)
 cd web && npm install && npm run build && cd ..
-agent-sessions dash
+agentseq dash
 ```
 
 ## Surfaces
@@ -93,28 +93,28 @@ agent-sessions dash
 ### CLI
 
 ```
-agent-sessions ls                        # table of sessions, newest first
-agent-sessions ls --json --limit 200     # machine-readable
-agent-sessions running                   # active claude --resume processes
-agent-sessions show <sid>                # session metadata (--short / --json)
-agent-sessions pick                      # interactive fzf picker; prints chosen sid
-agent-sessions open <sid> [--prompt X]   # open new terminal window/pane in the recorded cwd
-agent-sessions focus <sid>               # bring the terminal running this session to front
-agent-sessions smart <sid>               # focus if running, else open new
-agent-sessions index                     # refresh the SQLite index
+agentseq ls                        # table of sessions, newest first
+agentseq ls --json --limit 200     # machine-readable
+agentseq running                   # active claude --resume processes
+agentseq show <sid>                # session metadata (--short / --json)
+agentseq pick                      # interactive fzf picker; prints chosen sid
+agentseq open <sid> [--prompt X]   # open new terminal window/pane in the recorded cwd
+agentseq focus <sid>               # bring the terminal running this session to front
+agentseq smart <sid>               # focus if running, else open new
+agentseq index                     # refresh the SQLite index
 ```
 
 Session IDs accept unique prefixes. `pick` requires `fzf` on PATH (`brew install fzf`) and chains directly into a resume with `--exec smart`:
 
 ```bash
 # Print the chosen sid:
-agent-sessions pick
+agentseq pick
 
 # Pick + smart-resume in one shot:
-agent-sessions pick --exec smart
+agentseq pick --exec smart
 ```
 
-`open`, `focus`, `smart`, and `pick` all accept `--launcher {ghostty,tmux,zellij,generic}` (or set `AGENT_SESSIONS_LAUNCHER`) to override autodetection. Default behavior:
+`open`, `focus`, `smart`, and `pick` all accept `--launcher {ghostty,tmux,zellij,generic}` (or set `AGENTSEQ_LAUNCHER`) to override autodetection. Default behavior:
 
 - inside zellij → new pane in the current zellij session
 - inside tmux → new window in the current tmux session
@@ -123,7 +123,7 @@ agent-sessions pick --exec smart
 
 ### Menubar
 
-A [rumps](https://github.com/jaredks/rumps) app that lives in your macOS menu bar. The title shows `CC<n>` where `<n>` is the count of running `claude --resume` processes. The menu groups items by *Running* and *Recent*, with recent sessions bucketed by project. Click any item to focus its terminal if alive, or open a fresh Ghostty window in the recorded cwd otherwise.
+A [rumps](https://github.com/jaredks/rumps) app that lives in your macOS menu bar. The title shows `AQ<n>` where `<n>` is the count of running `claude --resume` processes. The menu groups items by *Running* and *Recent*, with recent sessions bucketed by project. Click any item to focus its terminal if alive, or open a fresh Ghostty window in the recorded cwd otherwise.
 
 ### Web dashboard
 
@@ -131,10 +131,10 @@ A React SPA served by FastAPI with SSE for live index updates. Routes:
 
 - Per-day session list with token usage, task counts, and prompt previews
 - Global search across session content (SQLite FTS5)
-- Optional Notion todo overlay (set `NOTION_TOKEN` + `AGENT_SESSIONS_NOTION_DB_ID`)
+- Optional Notion todo overlay (set `NOTION_TOKEN` + `AGENTSEQ_NOTION_DB_ID`)
 - Open-finder / open-editor / start-new-session actions per project
 
-The frontend lives in `web/`; build it once with `npm run build` before launching, or run `npm run dev` against a separate `agent-sessions dash` process during frontend development.
+The frontend lives in `web/`; build it once with `npm run build` before launching, or run `npm run dev` against a separate `agentseq dash` process during frontend development.
 
 ## Multiplexer integration
 
@@ -146,7 +146,7 @@ Add to `~/.tmux.conf`:
 
 ```tmux
 set -g @plugin 'nathanmauro/claude-sessions'
-set -g @agent_sessions_key 'C'   # optional; default is C
+set -g @agentseq_key 'C'   # optional; default is C
 ```
 
 Then `prefix + I` to install. `prefix + C` opens an fzf popup — pick a session,
@@ -159,9 +159,9 @@ Paste the snippet from [share/zellij/README.md](share/zellij/README.md) into
 `~/.config/zellij/config.kdl` and reload (`Ctrl + Shift + L`). `Alt + p` opens
 the picker in a transient pane.
 
-Both bindings shell out to `agent-sessions pick --exec smart`, so
-`agent-sessions` must be on `$PATH` (`pipx install agent-sessions` or
-`uv tool install agent-sessions`).
+Both bindings shell out to `agentseq pick --exec smart`, so
+`agentseq` must be on `$PATH` (`pipx install agentseq` or
+`uv tool install agentseq`).
 
 ## Configuration
 
@@ -170,18 +170,17 @@ All config is environment variables, with sensible defaults:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `CLAUDE_PROJECTS_DIR` | `~/.claude/projects` | Where to read session JSONL from |
-| `AGENT_SESSIONS_CACHE` | `~/.agent-sessions` | Cache dir for the SQLite index + caches |
-| `AGENT_SESSIONS_HOST` | `127.0.0.1` | Dashboard bind host |
-| `AGENT_SESSIONS_PORT` | `8765` | Dashboard port |
-| `AGENT_SESSIONS_INDEX_INTERVAL` | `60` | Background indexer interval (seconds) |
+| `AGENTSEQ_CACHE` | `~/.agentseq` | Cache dir for the SQLite index + caches |
+| `AGENTSEQ_HOST` | `127.0.0.1` | Dashboard bind host |
+| `AGENTSEQ_PORT` | `8765` | Dashboard port |
+| `AGENTSEQ_INDEX_INTERVAL` | `60` | Background indexer interval (seconds) |
 | `CLAUDE_BIN` | auto-detect | Path to the `claude` binary used by `open` |
 | `NOTION_TOKEN` | — | Optional; enables the Notion todos overlay |
-| `AGENT_SESSIONS_NOTION_DB_ID` | — | Notion database ID to query (required for overlay) |
-| `AGENT_SESSIONS_AUGGIE` | — | Path to the `auggie` binary if you use Augment |
+| `AGENTSEQ_NOTION_DB_ID` | — | Notion database ID to query (required for overlay) |
+| `AGENTSEQ_AUGGIE` | — | Path to the `auggie` binary if you use Augment |
 
-The legacy `CLAUDE_SESSIONS_*` names are still read as a fallback when the
-`AGENT_SESSIONS_*` equivalent is unset (see "Migrating from `claude-sessions`"
-above).
+The legacy `AGENT_SESSIONS_*` and `CLAUDE_SESSIONS_*` names are still read as a
+fallback when the `AGENTSEQ_*` equivalent is unset (see "Migrating" above).
 
 ## Development
 
@@ -192,7 +191,7 @@ uv run ruff check         # lint
 cd web && npm install && npm run dev   # frontend dev server on :5173
 ```
 
-The codebase is split into four packages under `agent_sessions/`:
+The codebase is split into four packages under `agentseq/`:
 
 ```
 core/    parser, SQLite indexer, models, event bus, config
