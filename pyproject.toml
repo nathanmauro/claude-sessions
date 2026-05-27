@@ -26,6 +26,7 @@ dash = [
     "httpx>=0.27",
     "python-multipart>=0.0.9",
 ]
+tui = ["textual>=1.0"]
 all = [
     "rumps>=0.4.0",
     "fastapi>=0.115",
@@ -33,6 +34,7 @@ all = [
     "pydantic>=2.7",
     "httpx>=0.27",
     "python-multipart>=0.0.9",
+    "textual>=1.0",
 ]
 dev = [
     "pytest>=8",
@@ -43,6 +45,7 @@ dev = [
 agentseq = "agentseq.cli.main:main"
 agent-sessions = "agentseq.cli.main:legacy_main"
 claude-sessions = "agentseq.cli.main:legacy_main"
+agentseq-tui = "agentseq.tui:main"
 
 [project.urls]
 Homepage = "https://github.com/nathanmauro/claude-sessions"

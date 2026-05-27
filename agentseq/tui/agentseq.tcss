@@ -1,0 +1,135 @@
+Screen {
+    background: $surface;
+}
+
+Header {
+    dock: top;
+}
+
+Footer {
+    dock: bottom;
+}
+
+#main-tabs {
+    height: 1fr;
+}
+
+ContentSwitcher {
+    height: 1fr;
+}
+
+/* Agent status indicators */
+.status-busy {
+    color: $success;
+    text-style: bold;
+}
+
+.status-idle {
+    color: $text-muted;
+}
+
+.kind-background {
+    color: $accent;
+}
+
+.kind-interactive {
+    color: $warning;
+}
+
+/* DataTable styling */
+DataTable {
+    height: 1fr;
+}
+
+DataTable > .datatable--cursor {
+    background: $accent 30%;
+}
+
+/* Selected rows for multi-select */
+.selected-marker {
+    color: $success;
+    text-style: bold;
+}
+
+/* Search bar */
+.search-bar {
+    dock: top;
+    height: 3;
+    padding: 0 1;
+}
+
+.search-bar Input {
+    width: 1fr;
+}
+
+/* Detail screen */
+.detail-meta {
+    height: auto;
+    max-height: 40%;
+    padding: 1;
+    border: solid $accent;
+}
+
+.detail-transcript {
+    height: 1fr;
+    padding: 1;
+    border: solid $primary;
+}
+
+.detail-tasks {
+    height: auto;
+    max-height: 30%;
+    padding: 1;
+    border: solid $warning;
+}
+
+/* Combine workspace */
+.combine-stats {
+    height: auto;
+    padding: 1;
+    border: solid $success;
+    margin-bottom: 1;
+}
+
+.combine-list {
+    height: 1fr;
+}
+
+/* Jobs pane */
+.job-running {
+    color: $success;
+}
+
+.job-failed {
+    color: $error;
+}
+
+.job-complete {
+    color: $text-muted;
+}
+
+/* Pane containers */
+.pane-container {
+    height: 1fr;
+    padding: 0;
+}
+
+/* Empty state */
+.empty-state {
+    content-align: center middle;
+    height: 1fr;
+    color: $text-muted;
+}
+
+/* Token display */
+.tokens-display {
+    color: $accent;
+}
+
+/* Section headers in detail */
+.section-header {
+    text-style: bold;
+    color: $accent;
+    padding: 0 0 0 0;
+    margin: 1 0 0 0;
+}
