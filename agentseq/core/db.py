@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import datetime as dt
 import sqlite3
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable, Iterator
 
 from .config import DB_PATH, PROJECTS_DIR
 from .models import SearchResult, Session, Task
@@ -64,7 +63,6 @@ def load_sessions(
     since=None,
     until=None,
 ) -> list[Session]:
-    import datetime as _dt
 
     with get_db() as conn:
         q = "SELECT * FROM sessions"

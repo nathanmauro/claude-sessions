@@ -15,7 +15,6 @@ from ..core import sessions
 from ..core.sessions import age_from_iso
 from ..menu import processes
 
-
 _C = {
     "reset":  "\x1b[0m",
     "dim":    "\x1b[2m",
@@ -322,6 +321,17 @@ def _cmd_dash(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_tui(_: argparse.Namespace) -> int:
+    try:
+        from ..tui import main as tui_main
+    except ImportError as e:
+        print(f"tui extra not installed: {e}", file=sys.stderr)
+        print("install with: pip install 'agentseq[tui]'", file=sys.stderr)
+        return 5
+    tui_main()
+    return 0
+
+
 def _cmd_index(args: argparse.Namespace) -> int:
     from ..core import db
     from ..core.config import PROJECTS_DIR
@@ -413,6 +423,9 @@ def main(argv: list[str] | None = None) -> int:
     p_index = sub.add_parser("index", help="refresh SQLite session index")
     p_index.add_argument("-v", "--verbose", action="store_true")
     p_index.set_defaults(func=_cmd_index)
+
+    p_tui = sub.add_parser("tui", help="launch Textual terminal UI (requires [tui] extra)")
+    p_tui.set_defaults(func=_cmd_tui)
 
     args = p.parse_args(argv)
     return args.func(args)
