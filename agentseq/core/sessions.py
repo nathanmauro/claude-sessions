@@ -4,9 +4,9 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sqlite3
-from dataclasses import dataclass, asdict
+from collections.abc import Iterator
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterator
 
 from .config import DB_PATH, PROJECTS_DIR
 
@@ -175,7 +175,7 @@ def age_from_iso(iso_ts: str | None) -> str:
         ts = dt.datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
     except ValueError:
         return "-"
-    delta = dt.datetime.now(dt.timezone.utc) - ts
+    delta = dt.datetime.now(dt.UTC) - ts
     secs = int(delta.total_seconds())
     if secs < 60:
         return f"{secs}s"

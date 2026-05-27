@@ -15,7 +15,6 @@ from ..core import sessions
 from ..core.sessions import age_from_iso
 from ..menu import processes
 
-
 _C = {
     "reset":  "\x1b[0m",
     "dim":    "\x1b[2m",

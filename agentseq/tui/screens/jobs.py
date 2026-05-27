@@ -1,8 +1,10 @@
 """Export and generation jobs queue."""
 from __future__ import annotations
-from textual.widgets import DataTable, Static
-from textual.containers import Container
+
 from textual.binding import Binding
+from textual.containers import Container
+from textual.widgets import DataTable, Static
+
 
 class JobsPane(Container):
     BINDINGS = [

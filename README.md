@@ -1,10 +1,19 @@
 # agentseq
 
-Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) sessions from three surfaces — terminal CLI, macOS menubar, and a local web dashboard — all backed by a shared SQLite index of `~/.claude/projects/*.jsonl`.
+![Status](https://img.shields.io/badge/status-alpha-orange)
+![Version](https://img.shields.io/badge/version-0.7.0-blue)
+![Python](https://img.shields.io/badge/python-3.11+-green)
+
+Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) sessions from four surfaces — terminal CLI, interactive TUI, macOS menubar, and a local web dashboard — all backed by a shared SQLite index of `~/.claude/projects/*.jsonl`.
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="Dashboard — browse sessions, tasks, and token usage" width="820"><br>
   <em>Dashboard: browse sessions, tasks, and token usage in your browser.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/tui.svg" alt="TUI — live agents view with session monitoring" width="820"><br>
+  <em>TUI: live agent monitoring, session browser, full-text search, and transcript viewer.</em>
 </p>
 
 <table>
@@ -21,7 +30,7 @@ Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs
 </table>
 
 
-> **Status:** alpha (0.6.0). Mac-first. Linux/Windows untested for the menubar surface; CLI + dash should work cross-platform once a non-Ghostty launcher path is added.
+> **Status:** alpha (0.7.0). Mac-first. Linux/Windows untested for the menubar surface; CLI, TUI, and dash should work cross-platform.
 
 ## Migrating from `agent-sessions` / `claude-sessions`
 
@@ -40,6 +49,7 @@ Claude Code already records every session as JSONL under `~/.claude/projects/`, 
 | Surface | Best for | Command |
 | --- | --- | --- |
 | **CLI** | scripting, fzf piping, quick lookup | `agentseq ls`, `... open <sid>`, `... smart <sid>` |
+| **TUI** | interactive monitoring, session drill-down | `agentseq tui` |
 | **Menubar** | always-on glance + one-click resume | `agentseq menu` |
 | **Dash** | reviewing a day's work, search, token usage | `agentseq dash` |
 
@@ -48,6 +58,9 @@ Claude Code already records every session as JSONL under `~/.claude/projects/`, 
 ```bash
 # CLI only (no GUI deps)
 pip install agentseq
+
+# CLI + interactive TUI (Textual)
+pip install 'agentseq[tui]'
 
 # CLI + macOS menubar
 pip install 'agentseq[menu]'
@@ -80,6 +93,9 @@ agentseq ls
 # Smart-resume: focus the terminal if it's already running, else open a new Ghostty window
 agentseq smart <session-id-prefix>
 
+# Launch the interactive TUI (requires [tui] extra)
+agentseq tui
+
 # Launch the macOS menubar (requires [menu] extra)
 agentseq menu
 
@@ -102,6 +118,7 @@ agentseq open <sid> [--prompt X]   # open new terminal window/pane in the record
 agentseq focus <sid>               # bring the terminal running this session to front
 agentseq smart <sid>               # focus if running, else open new
 agentseq index                     # refresh the SQLite index
+agentseq tui                       # launch Textual TUI (requires [tui] extra)
 ```
 
 Session IDs accept unique prefixes. `pick` requires `fzf` on PATH (`brew install fzf`) and chains directly into a resume with `--exec smart`:
@@ -113,6 +130,21 @@ agentseq pick
 # Pick + smart-resume in one shot:
 agentseq pick --exec smart
 ```
+
+### TUI
+
+A [Textual](https://textual.textualize.io/) terminal app with four tabs:
+
+| Tab | Key | Description |
+| --- | --- | --- |
+| **Agents** | `1` | Live agent monitor — polls `claude agents --json` every 3 s. Shows status, kind (interactive/background), session name, CWD, age, and PID. |
+| **Sessions** | `2` | Searchable session browser backed by the SQLite index. Type `/` to focus the search bar (SQLite FTS5 when available, fallback to substring match). |
+| **Combine** | `3` | Multi-select workspace — press `Space` on any session in Agents or Sessions to collect it here. Planned: export, skill drafting, and handoff summaries. |
+| **Jobs** | `4` | Export and generation job queue (coming soon). |
+
+From any row: `Enter` opens a detail screen with metadata, full transcript, and task list. `r` resumes the session, `s` smart-attaches (focus if running, else resume), `m` toggles raw JSON in the detail view.
+
+Also available as a standalone binary: `agentseq-tui`.
 
 `open`, `focus`, `smart`, and `pick` all accept `--launcher {ghostty,tmux,zellij,generic}` (or set `AGENTSEQ_LAUNCHER`) to override autodetection. Default behavior:
 
@@ -191,17 +223,18 @@ uv run ruff check         # lint
 cd web && npm install && npm run dev   # frontend dev server on :5173
 ```
 
-The codebase is split into four packages under `agentseq/`:
+The codebase is split into five packages under `agentseq/`:
 
 ```
 core/    parser, SQLite indexer, models, event bus, config
 cli/     argparse dispatcher
+tui/     Textual terminal UI — live agents, session browser, combine workspace
 menu/    rumps app, Ghostty launcher, process detection
 dash/    FastAPI server, Notion sync, subscription usage
 web/     Vite + React + TanStack Query frontend
 ```
 
-`core/` has zero third-party dependencies. `menu/` adds `rumps`. `dash/` adds `fastapi`, `uvicorn`, `pydantic`, `httpx`.
+`core/` has zero third-party dependencies. `tui/` adds `textual`. `menu/` adds `rumps`. `dash/` adds `fastapi`, `uvicorn`, `pydantic`, `httpx`.
 
 ## History
 

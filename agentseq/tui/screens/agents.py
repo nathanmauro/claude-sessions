@@ -74,8 +74,8 @@ class AgentsPane(Container):
     def _format_age(self, started_at_ms: int) -> str:
         if not started_at_ms:
             return "—"
-        started = dt.datetime.fromtimestamp(started_at_ms / 1000, tz=dt.timezone.utc)
-        delta = dt.datetime.now(dt.timezone.utc) - started
+        started = dt.datetime.fromtimestamp(started_at_ms / 1000, tz=dt.UTC)
+        delta = dt.datetime.now(dt.UTC) - started
         secs = int(delta.total_seconds())
         if secs < 60:
             return f"{secs}s"

@@ -6,9 +6,9 @@ from pathlib import Path
 from textual import on, work
 from textual.binding import Binding
 from textual.containers import Container, Horizontal
-from textual.widgets import DataTable, Input, Static
+from textual.widgets import DataTable, Input
 
-from ...core.sessions import list_sessions, session_display_title, age_from_iso
+from ...core.sessions import age_from_iso, list_sessions, session_display_title
 
 
 class SessionBrowserPane(Container):

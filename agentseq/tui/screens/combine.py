@@ -1,10 +1,12 @@
 """Combine workspace for multi-selected sessions."""
 from __future__ import annotations
+
 from pathlib import Path
-from textual.widgets import DataTable, Static
-from textual.containers import Container, Vertical
+
 from textual.binding import Binding
-from textual import work
+from textual.containers import Container
+from textual.widgets import DataTable, Static
+
 
 class CombinePane(Container):
     BINDINGS = [

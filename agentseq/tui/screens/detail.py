@@ -1,13 +1,15 @@
 """Session detail — pushed screen."""
 from __future__ import annotations
+
 import json
-from pathlib import Path
-from textual.screen import Screen
-from textual.app import ComposeResult
-from textual.widgets import Static, RichLog, DataTable, Header, Footer
-from textual.containers import Container, Vertical, Horizontal
-from textual.binding import Binding
+
 from textual import work
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Vertical
+from textual.screen import Screen
+from textual.widgets import DataTable, Footer, Header, RichLog, Static
+
 
 class DetailScreen(Screen):
     BINDINGS = [
@@ -106,9 +108,9 @@ class DetailScreen(Screen):
         log.clear()
         for role, text in session.all_messages[:200]:
             if role == "user":
-                log.write(f"[bold cyan]▶ User:[/bold cyan]")
+                log.write("[bold cyan]▶ User:[/bold cyan]")
             elif role == "assistant":
-                log.write(f"[bold green]◀ Assistant:[/bold green]")
+                log.write("[bold green]◀ Assistant:[/bold green]")
             else:
                 log.write(f"[dim]{role}:[/dim]")
             display_text = text[:2000]
@@ -161,7 +163,7 @@ class DetailScreen(Screen):
                         with open(jsonl) as f:
                             for i, line in enumerate(f):
                                 if i >= 100:
-                                    log.write(f"[dim]… truncated at 100 lines[/dim]")
+                                    log.write("[dim]… truncated at 100 lines[/dim]")
                                     break
                                 try:
                                     obj = json.loads(line)

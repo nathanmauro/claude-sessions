@@ -1,18 +1,18 @@
 """Main Textual app for agentseq."""
 from __future__ import annotations
 
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.reactive import reactive
-from textual.widgets import Header, Footer, TabbedContent, TabPane
-from textual import work
+from textual.widgets import Footer, Header, TabbedContent, TabPane
 
+from .live import LiveAgent, fetch_live_agents
 from .screens.agents import AgentsPane
 from .screens.browser import SessionBrowserPane
 from .screens.combine import CombinePane
-from .screens.jobs import JobsPane
 from .screens.detail import DetailScreen
-from .live import LiveAgent, fetch_live_agents
+from .screens.jobs import JobsPane
 
 
 class AgentSeqApp(App):

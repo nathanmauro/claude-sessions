@@ -233,7 +233,7 @@ async def api_events(request: Request) -> StreamingResponse:
                 try:
                     msg = await asyncio.wait_for(queue.get(), timeout=15.0)
                     yield f"data: {json.dumps(msg)}\n\n"
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     yield ": keepalive\n\n"
         finally:
             bus.unsubscribe(queue)
@@ -276,6 +276,7 @@ async def spa_fallback(full_path: str) -> Response:
 
 def run() -> None:
     import sys
+
     import uvicorn
 
     no_open = "--no-open" in sys.argv[1:]
