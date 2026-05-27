@@ -332,6 +332,42 @@ def _cmd_tui(_: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_search(args: argparse.Namespace) -> int:
+    import re
+    import sqlite3
+
+    from ..core import db
+
+    try:
+        results = db.search(args.query, limit=args.limit)
+    except sqlite3.OperationalError:
+        print("search index not found. run: agentseq index", file=sys.stderr)
+        return 4
+
+    if not results:
+        print(f"no results for: {args.query}", file=sys.stderr)
+        return 0
+
+    if args.json:
+        print(json.dumps([r.model_dump() for r in results], indent=2))
+        return 0
+
+    strip_tags = re.compile(r"</?b>")
+    print(f"{'SESSION':<10}  {'DATE':<17}  {'CWD':<28}  {'TITLE'}")
+    for r in results:
+        sid = r.session_id[:8]
+        cwd = _home_relative(r.cwd)
+        if len(cwd) > 28:
+            cwd = "…/" + cwd.rsplit("/", 1)[-1]
+        cwd = cwd[:28]
+        title = r.title[:60]
+        snippet = strip_tags.sub("", r.snippet).replace("\n", " ")[:80]
+        print(f"{sid:<10}  {r.date:<17}  {cwd:<28}  {title}")
+        if snippet:
+            print(f"{'':>10}  {_C['dim']}{snippet}{_C['reset']}")
+    return 0
+
+
 def _cmd_index(args: argparse.Namespace) -> int:
     from ..core import db
     from ..core.config import PROJECTS_DIR
@@ -419,6 +455,12 @@ def main(argv: list[str] | None = None) -> int:
     p_dash.add_argument("--host", default=None)
     p_dash.add_argument("--port", type=int, default=None)
     p_dash.set_defaults(func=_cmd_dash)
+
+    p_search = sub.add_parser("search", help="full-text search across session transcripts")
+    p_search.add_argument("query", help="search query (FTS5 syntax)")
+    p_search.add_argument("--json", action="store_true")
+    p_search.add_argument("--limit", type=int, default=20)
+    p_search.set_defaults(func=_cmd_search)
 
     p_index = sub.add_parser("index", help="refresh SQLite session index")
     p_index.add_argument("-v", "--verbose", action="store_true")

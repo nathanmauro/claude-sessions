@@ -1,5 +1,6 @@
 # agentseq
 
+[![CI](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml/badge.svg)](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
 ![Version](https://img.shields.io/badge/version-0.7.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-green)

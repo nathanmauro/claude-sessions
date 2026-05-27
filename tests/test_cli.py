@@ -1,13 +1,15 @@
-"""Tests for the show + pick CLI subcommands."""
+"""Tests for the show, pick, and search CLI subcommands."""
 from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import subprocess
 
 import pytest
 
 from agentseq.cli import main as cli
+from agentseq.core.models import SearchResult
 from agentseq.core.sessions import Session
 
 
@@ -271,3 +273,71 @@ def test_pick_nonzero_returncode_falls_back_to_synthetic_error(
     assert rc == 1
     err = capsys.readouterr().err
     assert "fzf exited with status 2" in err
+
+
+# ------------------------------ search -----------------------------
+
+
+def _make_search_results():
+    return [
+        SearchResult(
+            session_id="abc123def-4567-89ab-cdef-0123456789ab",
+            title="Refactor the thing",
+            snippet="...found the <b>parser</b> bug in line 42...",
+            cwd="/Users/nathan/Developer/proj/foo",
+            date="2026-05-18 10:00",
+        ),
+        SearchResult(
+            session_id="zzz99999-1111-2222-3333-444444444444",
+            title="Add search feature",
+            snippet="...wired up <b>FTS5</b> search...",
+            cwd="/Users/nathan/Developer/proj/bar",
+            date="2026-05-19 14:30",
+        ),
+    ]
+
+
+def test_search_tabular_output(monkeypatch, capsys):
+    monkeypatch.setattr("agentseq.core.db.search", lambda q, limit: _make_search_results())
+    rc = cli._cmd_search(argparse.Namespace(query="parser", json=False, limit=20))
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "abc123de" in out
+    assert "Refactor the thing" in out
+    assert "parser" in out
+    assert "<b>" not in out
+
+
+def test_search_json_output(monkeypatch, capsys):
+    monkeypatch.setattr("agentseq.core.db.search", lambda q, limit: _make_search_results())
+    rc = cli._cmd_search(argparse.Namespace(query="parser", json=True, limit=20))
+    out = capsys.readouterr().out
+    assert rc == 0
+    payload = json.loads(out)
+    assert len(payload) == 2
+    assert payload[0]["session_id"] == "abc123def-4567-89ab-cdef-0123456789ab"
+    assert payload[0]["title"] == "Refactor the thing"
+
+
+def test_search_no_results(monkeypatch, capsys):
+    monkeypatch.setattr("agentseq.core.db.search", lambda q, limit: [])
+    rc = cli._cmd_search(argparse.Namespace(query="nonexistent", json=False, limit=20))
+    assert rc == 0
+    assert "no results" in capsys.readouterr().err
+
+
+def test_search_missing_index(monkeypatch, capsys):
+    def boom(q, limit):
+        raise sqlite3.OperationalError("no such table: messages_fts")
+    monkeypatch.setattr("agentseq.core.db.search", boom)
+    rc = cli._cmd_search(argparse.Namespace(query="anything", json=False, limit=20))
+    assert rc == 4
+    assert "agentseq index" in capsys.readouterr().err
+
+
+def test_search_via_main_entrypoint(monkeypatch, capsys):
+    monkeypatch.setattr("agentseq.core.db.search", lambda q, limit: _make_search_results())
+    rc = cli.main(["search", "parser"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "abc123de" in out
