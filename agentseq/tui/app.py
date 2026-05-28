@@ -88,7 +88,10 @@ class AgentSeqApp(App):
     def open_detail(self, session_id: str) -> None:
         self.push_screen(DetailScreen(session_id))
 
-    def resume_session(self, session_id: str, cwd: str = "") -> None:
+    def resume_session(self, session_id: str, cwd: str = "", source: str = "claude") -> None:
+        if source != "claude":
+            self.notify(f"Resume only supports Claude sessions, got {source}", severity="warning")
+            return
         from ..core.launcher import autodetect
 
         launcher = autodetect()
@@ -98,7 +101,10 @@ class AgentSeqApp(App):
         else:
             self.notify(f"Failed: {msg}", severity="error")
 
-    def smart_attach(self, session_id: str, cwd: str = "") -> None:
+    def smart_attach(self, session_id: str, cwd: str = "", source: str = "claude") -> None:
+        if source != "claude":
+            self.notify(f"Smart attach only supports Claude sessions, got {source}", severity="warning")
+            return
         try:
             from ..menu.processes import find_running
 
@@ -113,9 +119,12 @@ class AgentSeqApp(App):
                     return
         except Exception:
             pass
-        self.resume_session(session_id, cwd)
+        self.resume_session(session_id, cwd, source)
 
-    def focus_session(self, session_id: str) -> None:
+    def focus_session(self, session_id: str, source: str = "claude") -> None:
+        if source != "claude":
+            self.notify(f"Focus only supports Claude sessions, got {source}", severity="warning")
+            return
         try:
             from ..menu.processes import find_running
 

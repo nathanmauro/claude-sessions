@@ -20,6 +20,7 @@ class Session(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     session_id: str
+    source: str = "claude"
     project_dir: str
     cwd: str
     path: Path
@@ -124,6 +125,7 @@ class SubscriptionUsage(BaseModel):
 
 class SearchResult(BaseModel):
     session_id: str
+    source: str = "claude"
     title: str
     snippet: str
     cwd: str

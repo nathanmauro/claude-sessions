@@ -4,14 +4,14 @@ import threading
 import time
 
 from . import db
-from .config import INDEXER_INTERVAL_S, PROJECTS_DIR
+from .config import INDEXER_INTERVAL_S
 from .events import bus
 
 
 def _loop() -> None:
     while True:
         try:
-            changed = db.index_all(PROJECTS_DIR)
+            changed = db.index_all()
             if changed:
                 bus.publish({"type": "indexed", "sids": changed})
         except Exception as e:

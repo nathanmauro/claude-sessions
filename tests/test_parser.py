@@ -9,8 +9,10 @@ import pytest
 
 from agentseq.core.parser import (
     decode_project_dir,
+    extract_codex_text,
     extract_text,
     is_real_user_prompt,
+    parse_codex_session,
     parse_session,
     parse_ts,
 )
@@ -67,6 +69,15 @@ def test_extract_text_concatenates_text_blocks_and_skips_non_text():
 def test_extract_text_returns_empty_for_unknown_shapes():
     assert extract_text(None) == ""
     assert extract_text({"type": "text", "text": "ignored"}) == ""
+
+
+def test_extract_codex_text_reads_input_and_output_blocks():
+    blocks = [
+        {"type": "input_text", "text": "one"},
+        {"type": "tool_call", "text": "ignored"},
+        {"type": "output_text", "text": "two"},
+    ]
+    assert extract_codex_text(blocks) == "one\ntwo"
 
 
 # ----------------------- is_real_user_prompt -----------------------
@@ -303,3 +314,76 @@ def test_parse_session_start_and_end_span_messages(session_jsonl: Path):
     assert sess.end_ts == dt.datetime(
         2026, 5, 18, 10, 0, 25, tzinfo=dt.UTC
     )
+
+
+def test_parse_codex_session_filters_bootstrap_messages(tmp_path: Path):
+    path = tmp_path / "rollout-2026-05-28T12-00-00-codex-123.jsonl"
+    _write_jsonl(
+        path,
+        [
+            {
+                "type": "session_meta",
+                "timestamp": "2026-05-28T16:00:00Z",
+                "payload": {
+                    "id": "codex-123",
+                    "cwd": "/Users/nathan/Developer/proj/foo",
+                },
+            },
+            {
+                "type": "response_item",
+                "timestamp": "2026-05-28T16:00:01Z",
+                "payload": {
+                    "type": "message",
+                    "role": "developer",
+                    "content": [{"type": "input_text", "text": "system rules"}],
+                },
+            },
+            {
+                "type": "response_item",
+                "timestamp": "2026-05-28T16:00:02Z",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "# AGENTS.md instructions for /tmp/foo",
+                        }
+                    ],
+                },
+            },
+            {
+                "type": "response_item",
+                "timestamp": "2026-05-28T16:00:03Z",
+                "payload": {
+                    "type": "message",
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": "codex question"}],
+                },
+            },
+            {
+                "type": "response_item",
+                "timestamp": "2026-05-28T16:00:04Z",
+                "payload": {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "output_text", "text": "codex answer"}],
+                },
+            },
+        ],
+    )
+
+    sess = parse_codex_session(path)
+
+    assert sess is not None
+    assert sess.source == "codex"
+    assert sess.session_id == "codex-123"
+    assert sess.cwd == "/Users/nathan/Developer/proj/foo"
+    assert sess.title == "codex question"
+    assert sess.first_prompt == "codex question"
+    assert sess.last_prompt == "codex question"
+    assert sess.user_msg_count == 1
+    assert sess.all_messages == [
+        ("user", "codex question"),
+        ("assistant", "codex answer"),
+    ]

@@ -83,6 +83,7 @@ export function SessionCard({ session, project, expandRequest }: Props) {
 
   const tasks = Object.values(session.tasks);
   const title = session.title || session.first_prompt.slice(0, 80) || session.session_id;
+  const resumable = session.source === "claude";
   const firstPrompt = session.first_prompt
     ? truncate(session.first_prompt, 220)
     : null;
@@ -100,6 +101,7 @@ export function SessionCard({ session, project, expandRequest }: Props) {
       <button type="button" className="session-summary" onClick={toggle}>
         <div className="meta">
           <span className="time">{fmtRange(session.start_ts, session.end_ts)}</span>
+          <span className="pill">{session.source}</span>
           <span className="duration">{fmtDuration(session.start_ts, session.end_ts)}</span>
           <span className="msgs">
             {session.user_msg_count} msg{pluralS(session.user_msg_count)}
@@ -162,18 +164,22 @@ export function SessionCard({ session, project, expandRequest }: Props) {
               </ul>
             )}
           </section>
-          <form className="resume" onSubmit={onResume}>
-            <input
-              className="prompt-input"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Optional direction for resumed session…"
-              autoComplete="off"
-            />
-            <button type="submit" disabled={submitting}>
-              Resume ↻
-            </button>
-          </form>
+          {resumable ? (
+            <form className="resume" onSubmit={onResume}>
+              <input
+                className="prompt-input"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Optional direction for resumed session…"
+                autoComplete="off"
+              />
+              <button type="submit" disabled={submitting}>
+                Resume ↻
+              </button>
+            </form>
+          ) : (
+            <p className="muted">Resume is available for Claude sessions only.</p>
+          )}
         </div>
       )}
     </article>

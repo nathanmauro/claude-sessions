@@ -27,7 +27,7 @@ class AgentseqApp(rumps.App):
         self._build_menu()
 
     def _build_menu(self) -> None:
-        all_sess = sessions.list_sessions()
+        all_sess = [s for s in sessions.list_sessions() if s.source == "claude"]
         running = processes.list_running()
         running_map = {r.session_id: r for r in running}
 

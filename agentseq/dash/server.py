@@ -192,6 +192,9 @@ async def api_resume(req: _ResumeReq) -> dict:
     cwd = req.cwd.strip()
     if not sid or not cwd:
         return {"ok": False, "message": "missing sid or cwd"}
+    match = next((s for s in db.load_sessions() if s.session_id == sid), None)
+    if match and match.source != "claude":
+        return {"ok": False, "message": f"resume only supports Claude sessions, got {match.source}"}
     ok, info = launcher.resume_session(sid, cwd, req.prompt)
     return {"ok": ok, "message": info}
 

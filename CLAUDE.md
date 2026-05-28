@@ -27,6 +27,8 @@ even though the project/package was renamed to `agentseq`).
   (auto-migrated on first run from older locations).
 - Textual TUI added (v0.7.0): live agent monitoring, session browser with FTS,
   detail screen with transcript + tasks, combine workspace for multi-session ops.
+- v0.8.0 branch adds Codex Desktop transcript indexing from `~/.codex/sessions`,
+  source-aware CLI/TUI/dash rows, and TUI Combine Markdown export.
 
 ## Prior session transcript
 

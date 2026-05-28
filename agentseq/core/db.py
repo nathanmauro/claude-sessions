@@ -5,9 +5,9 @@ from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from .config import DB_PATH, PROJECTS_DIR
+from .config import CODEX_SESSIONS_DIR, DB_PATH, PROJECTS_DIR
 from .models import SearchResult, Session, Task
-from .parser import parse_session, parse_ts
+from .parser import parse_any_session, parse_ts
 
 
 def build_project_index(sessions: Iterable[Session]) -> dict[str, tuple[str, str]]:
@@ -27,6 +27,13 @@ def build_project_index(sessions: Iterable[Session]) -> dict[str, tuple[str, str
 
 def _row_to_session(r, conn) -> Session:
     sid = r["session_id"]
+    keys = set(r.keys())
+    source = r["source"] if "source" in keys and r["source"] else "claude"
+    path = (
+        Path(r["path"])
+        if "path" in keys and r["path"]
+        else PROJECTS_DIR / (r["project_dir"] or "") / f"{sid}.jsonl"
+    )
     task_rows = conn.execute(
         "SELECT * FROM tasks WHERE session_id = ?", (sid,)
     ).fetchall()
@@ -41,9 +48,10 @@ def _row_to_session(r, conn) -> Session:
     }
     return Session(
         session_id=sid,
+        source=source,
         project_dir=r["project_dir"] or "",
         cwd=r["cwd"] or "",
-        path=PROJECTS_DIR / (r["project_dir"] or "") / f"{sid}.jsonl",
+        path=path,
         start_ts=parse_ts(r["start_ts"]),
         end_ts=parse_ts(r["end_ts"]),
         title=r["title"] or "",
@@ -111,14 +119,23 @@ def get_db() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
+def _ensure_column(conn: sqlite3.Connection, table: str, column_def: str) -> None:
+    column = column_def.split()[0]
+    cols = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
+
+
 def init_db() -> None:
     with get_db() as conn:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS sessions (
                 session_id TEXT PRIMARY KEY,
+                source TEXT,
                 project_dir TEXT,
                 cwd TEXT,
+                path TEXT,
                 start_ts TEXT,
                 end_ts TEXT,
                 title TEXT,
@@ -146,8 +163,13 @@ def init_db() -> None:
                 notion_page_id TEXT,
                 augment_indexed_at TEXT,
                 editor TEXT
-            );
-        """)
+                );
+            """)
+        _ensure_column(conn, "sessions", "source TEXT")
+        _ensure_column(conn, "sessions", "path TEXT")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sessions_source_path ON sessions(source, path)"
+        )
         try:
             conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
@@ -163,49 +185,75 @@ def init_db() -> None:
             """)
 
 
-def index_all(projects_dir: Path = PROJECTS_DIR) -> list[str]:
-    init_db()
-    changed: list[str] = []
-    with get_db() as conn:
+def iter_source_paths(
+    projects_dir: Path = PROJECTS_DIR,
+    codex_dir: Path = CODEX_SESSIONS_DIR,
+) -> Iterator[tuple[str, Path]]:
+    if projects_dir.exists():
         for proj in projects_dir.iterdir():
             if not proj.is_dir():
                 continue
             for jsonl in proj.glob("*.jsonl"):
-                stat = jsonl.stat()
-                cur = conn.execute(
-                    "SELECT mtime, size FROM sessions WHERE session_id = ?",
-                    (jsonl.stem,),
-                ).fetchone()
-                if cur and cur["mtime"] == stat.st_mtime and cur["size"] == stat.st_size:
-                    continue
-                sess = parse_session(jsonl)
-                if not sess:
-                    continue
-                conn.execute("DELETE FROM messages_fts WHERE session_id = ?", (sess.session_id,))
-                conn.execute("DELETE FROM tasks WHERE session_id = ?", (sess.session_id,))
+                yield "claude", jsonl
+    if codex_dir.exists():
+        for jsonl in codex_dir.rglob("*.jsonl"):
+            yield "codex", jsonl
+
+
+def index_all(
+    projects_dir: Path = PROJECTS_DIR,
+    codex_dir: Path = CODEX_SESSIONS_DIR,
+) -> list[str]:
+    init_db()
+    changed: list[str] = []
+    with get_db() as conn:
+        for source, jsonl in iter_source_paths(projects_dir, codex_dir):
+            stat = jsonl.stat()
+            cur = conn.execute(
+                "SELECT mtime, size FROM sessions WHERE source = ? AND path = ?",
+                (source, str(jsonl)),
+            ).fetchone()
+            if cur and cur["mtime"] == stat.st_mtime and cur["size"] == stat.st_size:
+                continue
+            sess = parse_any_session(jsonl, source)
+            if not sess:
+                continue
+            conn.execute("DELETE FROM messages_fts WHERE session_id = ?", (sess.session_id,))
+            conn.execute("DELETE FROM tasks WHERE session_id = ?", (sess.session_id,))
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO sessions(
+                    session_id, source, project_dir, cwd, path, start_ts, end_ts,
+                    title, first_prompt, last_prompt, user_msg_count,
+                    input_tokens, output_tokens, cache_create_tokens,
+                    cache_read_tokens, mtime, size
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    sess.session_id, sess.source, sess.project_dir, sess.cwd,
+                    str(sess.path),
+                    sess.start_ts.isoformat() if sess.start_ts else None,
+                    sess.end_ts.isoformat() if sess.end_ts else None,
+                    sess.title, sess.first_prompt, sess.last_prompt,
+                    sess.user_msg_count, sess.input_tokens, sess.output_tokens,
+                    sess.cache_create_tokens, sess.cache_read_tokens,
+                    stat.st_mtime, stat.st_size,
+                ),
+            )
+            for role, content in sess.all_messages:
                 conn.execute(
-                    "INSERT OR REPLACE INTO sessions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        sess.session_id, sess.project_dir, sess.cwd,
-                        sess.start_ts.isoformat() if sess.start_ts else None,
-                        sess.end_ts.isoformat() if sess.end_ts else None,
-                        sess.title, sess.first_prompt, sess.last_prompt,
-                        sess.user_msg_count, sess.input_tokens, sess.output_tokens,
-                        sess.cache_create_tokens, sess.cache_read_tokens,
-                        stat.st_mtime, stat.st_size,
-                    ),
+                    "INSERT INTO messages_fts(session_id, role, content) VALUES (?, ?, ?)",
+                    (sess.session_id, role, content),
                 )
-                for role, content in sess.all_messages:
-                    conn.execute(
-                        "INSERT INTO messages_fts(session_id, role, content) VALUES (?, ?, ?)",
-                        (sess.session_id, role, content),
-                    )
-                for t in sess.tasks.values():
-                    conn.execute(
-                        "INSERT INTO tasks VALUES (?,?,?,?,?)",
-                        (sess.session_id, t.task_id, t.subject, t.description, t.status),
-                    )
-                changed.append(sess.session_id)
+            for t in sess.tasks.values():
+                conn.execute(
+                    """
+                    INSERT INTO tasks(session_id, task_id, subject, description, status)
+                    VALUES (?,?,?,?,?)
+                    """,
+                    (sess.session_id, t.task_id, t.subject, t.description, t.status),
+                )
+            changed.append(sess.session_id)
     return changed
 
 
@@ -213,7 +261,7 @@ def search(query: str, limit: int = 50) -> list[SearchResult]:
     with get_db() as conn:
         rows = conn.execute(
             """
-            SELECT s.session_id, s.title, s.first_prompt, s.cwd, s.start_ts,
+            SELECT s.session_id, s.source, s.title, s.first_prompt, s.cwd, s.start_ts,
                    snippet(messages_fts, 2, '<b>', '</b>', '...', 64) as snippet
             FROM messages_fts
             JOIN sessions s ON s.session_id = messages_fts.session_id
@@ -228,6 +276,7 @@ def search(query: str, limit: int = 50) -> list[SearchResult]:
         ts = parse_ts(r["start_ts"])
         out.append(SearchResult(
             session_id=r["session_id"],
+            source=r["source"] or "claude",
             title=r["title"] or (r["first_prompt"] or "")[:80] or r["session_id"],
             snippet=r["snippet"] or "",
             cwd=r["cwd"] or "",
