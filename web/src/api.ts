@@ -9,6 +9,7 @@ export interface Task {
 
 export interface SessionData {
   session_id: string;
+  source: string;
   project_dir: string;
   cwd: string;
   start_ts: string | null;
@@ -81,6 +82,7 @@ export interface NotionTodosResponse {
 
 export interface SearchHit {
   session_id: string;
+  source: string;
   title: string;
   snippet: string;
   cwd: string;

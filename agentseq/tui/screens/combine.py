@@ -27,7 +27,7 @@ class CombinePane(Container):
 
     def on_mount(self):
         table = self.query_one("#combine-table", DataTable)
-        table.add_columns("Session", "Title", "CWD", "Messages", "Tokens")
+        table.add_columns("Source", "Session", "Title", "CWD", "Messages", "Tokens")
 
     def refresh_selected(self, selected: set[str]):
         """Called by app when selection changes."""
@@ -52,6 +52,7 @@ class CombinePane(Container):
             total_msgs += msgs
             cwds.add(s.cwd or "unknown")
             table.add_row(
+                s.source,
                 s.session_id[:8],
                 title,
                 cwd_short,
@@ -91,7 +92,20 @@ class CombinePane(Container):
         if not selected:
             self.app.notify("No sessions selected", severity="warning")
             return
-        self.app.notify(f"Export {len(selected)} sessions — coming soon")
+        try:
+            from ...core.export import export_sessions_markdown
+            from .jobs import JobsPane
+
+            selected_ids = sorted(selected)
+            path = export_sessions_markdown(selected_ids)
+            try:
+                jobs = self.app.query_one(JobsPane)
+                jobs.add_job("Export", selected_ids, str(path), status="Complete")
+            except Exception:
+                pass
+            self.app.notify(f"Exported {len(selected_ids)} sessions to {path}")
+        except Exception as e:
+            self.app.notify(f"Export failed: {e}", severity="error")
 
     def action_skill_draft(self):
         selected = self.app.selected_sessions

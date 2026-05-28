@@ -27,12 +27,18 @@ class JobsPane(Container):
         table.add_columns("Status", "Type", "Sessions", "Output", "Created")
         table.display = False
 
-    def add_job(self, job_type: str, session_ids: list[str], output_path: str = ""):
+    def add_job(
+        self,
+        job_type: str,
+        session_ids: list[str],
+        output_path: str = "",
+        status: str = "Complete",
+    ):
         table = self.query_one("#jobs-table", DataTable)
         table.display = True
         self.query_one("#jobs-empty").display = False
         table.add_row(
-            "⟳ Running",
+            status,
             job_type,
             str(len(session_ids)),
             output_path or "—",

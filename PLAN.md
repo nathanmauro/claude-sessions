@@ -5,12 +5,12 @@ project-level [`CLAUDE.md`](CLAUDE.md) (consolidation history + per-package
 rules) and [`README.md`](README.md) (user-facing docs).
 
 **Repo:** https://github.com/nathanmauro/claude-sessions
-**Branch:** `main`
-**Version:** 0.7.0
-**Tests:** 83 passing (`uv run pytest`)
+**Branch:** `codex/codex-session-source`
+**Version:** 0.8.0
+**Tests:** 88 passing (`uv run pytest`)
 **Lint:** clean (`uv run ruff check agentseq/ tests/`)
 **CI:** [![CI](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml/badge.svg)](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml)
-**Last touched:** 2026-05-27
+**Last touched:** 2026-05-28
 
 ---
 
@@ -25,6 +25,7 @@ rules) and [`README.md`](README.md) (user-facing docs).
 | — | Deterministic screenshots (VHS tapes) for dashboard, CLI, and menubar. | `99a80ab` |
 | 4 | Textual TUI — live agent monitor, session browser with FTS, detail screen (transcript + tasks), combine workspace, jobs queue placeholder. SVG screenshot, README badges + full TUI docs. All ruff lint debt cleared. v0.7.0. | [#9](https://github.com/nathanmauro/claude-sessions/pull/9) |
 | 5 | CI pipeline (`.github/workflows/test.yml`, Python 3.11+3.12 matrix) + `agentseq search` CLI command (FTS5, tabular + `--json`). README CI badge. 83 tests. | [#11](https://github.com/nathanmauro/claude-sessions/pull/11) |
+| 6 | In progress: Codex Desktop session indexing (`~/.codex/sessions/**/*.jsonl`), source-aware CLI/TUI/dash rows, and TUI Combine Markdown export. v0.8.0 target. | local branch |
 
 ---
 
@@ -37,6 +38,7 @@ Don't relitigate unless something has actually changed:
 - **`(ok: bool, msg: str)` tuples** are the return contract for all launcher methods. No exceptions, no dataclass.
 - **`pick` requires fzf as a hard dep**, with an install hint on failure.
 - **Dashboard stays** alongside the TUI. Different use cases — dash is for browser-based search from elsewhere; TUI is for terminal-native monitoring.
+- **Codex rows are searchable/exportable, not resumable.** Resume/focus/smart actions stay Claude-only because they shell out to `claude --resume`.
 - **Squash-merge PRs.** Keeps `main` linear with one clean commit per feature.
 - **No Claude attribution on commits/PRs.** Per global `~/.claude/CLAUDE.md`. Nathan as sole author.
 - **Tmux focus is best-effort.** Searches `tmux list-panes -a` for a matching `pane_pid`. Doesn't yet walk up from a claude pid.
@@ -49,7 +51,7 @@ Don't relitigate unless something has actually changed:
 
 The Combine tab collects multi-selected sessions but the action buttons are placeholders ("coming soon"). Wire up:
 
-- [ ] **Export** (`e`) — concatenate selected session transcripts to a markdown file
+- [x] **Export** (`e`) — concatenate selected session transcripts to a markdown file
 - [ ] **Skill draft** (`k`) — extract patterns from selected sessions into a skill skeleton
 - [ ] **Handoff summary** (`h`) — generate a context summary from selected sessions
 
@@ -147,7 +149,7 @@ share/
 ## Validation commands
 
 ```bash
-uv run pytest -x -q                    # 83 tests
+uv run pytest -x -q                    # 88 tests
 uv run ruff check agentseq/ tests/     # lint (zero warnings)
 uv run agentseq ls                     # smoke
 uv run agentseq tui                    # TUI smoke (needs TTY)

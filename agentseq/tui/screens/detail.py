@@ -45,15 +45,16 @@ class DetailScreen(Screen):
     @work(thread=True)
     def load_session(self):
         session = None
-        from ...core.config import PROJECTS_DIR
-        for jsonl in PROJECTS_DIR.rglob("*.jsonl"):
-            if jsonl.stem == self.session_id:
-                try:
-                    from ...core.parser import parse_session
-                    session = parse_session(jsonl)
-                except Exception:
-                    pass
-                break
+        try:
+            from ...core.parser import parse_any_session
+            from ...core.sessions import find_session_path
+
+            found = find_session_path(self.session_id)
+            if found:
+                source, jsonl = found
+                session = parse_any_session(jsonl, source)
+        except Exception:
+            pass
         self.app.call_from_thread(self._render_session, session)
 
     def _render_session(self, session):
@@ -94,7 +95,7 @@ class DetailScreen(Screen):
 
         meta_text = (
             f"[bold]{title}[/bold]\n"
-            f"Session: {self.session_id}  {status}\n"
+            f"Session: {self.session_id}  Source: {session.source}  {status}\n"
             f"CWD: {cwd}\n"
             f"Started: {start}  Ended: {end}\n"
             f"Messages: {session.user_msg_count}  "
@@ -140,11 +141,11 @@ class DetailScreen(Screen):
 
     def action_resume(self):
         if self._session:
-            self.app.resume_session(self.session_id, self._session.cwd)
+            self.app.resume_session(self.session_id, self._session.cwd, self._session.source)
 
     def action_smart_attach(self):
         if self._session:
-            self.app.smart_attach(self.session_id, self._session.cwd)
+            self.app.smart_attach(self.session_id, self._session.cwd, self._session.source)
 
     def action_select(self):
         self.app.toggle_selection(self.session_id)
@@ -156,23 +157,26 @@ class DetailScreen(Screen):
         log.clear()
         self._show_raw = not self._show_raw
         if self._show_raw:
-            from ...core.config import PROJECTS_DIR
-            for jsonl in PROJECTS_DIR.rglob("*.jsonl"):
-                if jsonl.stem == self.session_id:
-                    try:
-                        with open(jsonl) as f:
-                            for i, line in enumerate(f):
-                                if i >= 100:
-                                    log.write("[dim]… truncated at 100 lines[/dim]")
-                                    break
-                                try:
-                                    obj = json.loads(line)
-                                    log.write(json.dumps(obj, indent=2)[:500])
-                                except json.JSONDecodeError:
-                                    log.write(f"[red]Invalid JSON line {i}[/red]")
-                                log.write("")
-                    except Exception as e:
-                        log.write(f"[red]Error reading file: {e}[/red]")
-                    break
+            from ...core.sessions import find_session_path
+
+            found = find_session_path(self.session_id)
+            if not found:
+                log.write("[red]Session file not found[/red]")
+                return
+            _source, jsonl = found
+            try:
+                with open(jsonl) as f:
+                    for i, line in enumerate(f):
+                        if i >= 100:
+                            log.write("[dim]… truncated at 100 lines[/dim]")
+                            break
+                        try:
+                            obj = json.loads(line)
+                            log.write(json.dumps(obj, indent=2)[:500])
+                        except json.JSONDecodeError:
+                            log.write(f"[red]Invalid JSON line {i}[/red]")
+                        log.write("")
+            except Exception as e:
+                log.write(f"[red]Error reading file: {e}[/red]")
         else:
             self._render_session(self._session)

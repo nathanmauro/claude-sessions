@@ -8,7 +8,8 @@ from collections.abc import Iterator
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .config import DB_PATH, PROJECTS_DIR
+from .config import CODEX_SESSIONS_DIR, DB_PATH, PROJECTS_DIR
+from .parser import parse_codex_session
 
 
 @dataclass
@@ -19,6 +20,7 @@ class Session:
     path: str
     mtime: float
     size: int
+    source: str = "claude"
     start_ts: str | None = None
     end_ts: str | None = None
     title: str | None = None
@@ -28,7 +30,10 @@ class Session:
 
     @property
     def project_name(self) -> str:
-        return Path(self.cwd).name or self.cwd
+        name = Path(self.cwd).name or self.cwd
+        if self.source != "claude":
+            return f"{self.source}:{name}"
+        return name
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -111,6 +116,35 @@ def parse_session_file(path: Path) -> Session | None:
     return sess
 
 
+def _from_model_session(sess) -> Session:
+    try:
+        st = sess.path.stat()
+    except OSError:
+        st = None
+    return Session(
+        session_id=sess.session_id,
+        source=sess.source,
+        cwd=sess.cwd,
+        project_dir=sess.project_dir,
+        path=str(sess.path),
+        mtime=st.st_mtime if st else 0.0,
+        size=st.st_size if st else 0,
+        start_ts=sess.start_ts.isoformat() if sess.start_ts else None,
+        end_ts=sess.end_ts.isoformat() if sess.end_ts else None,
+        title=sess.title,
+        first_prompt=sess.first_prompt,
+        last_prompt=sess.last_prompt,
+        user_msg_count=sess.user_msg_count,
+    )
+
+
+def parse_codex_session_file(path: Path) -> Session | None:
+    sess = parse_codex_session(path)
+    if sess is None:
+        return None
+    return _from_model_session(sess)
+
+
 def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
     """Read session rows from the SQLite index. Returns None on any
     schema/availability issue so the caller can fall back to JSONL parsing."""
@@ -118,12 +152,9 @@ def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except sqlite3.OperationalError:
         return None
+    conn.row_factory = sqlite3.Row
     try:
-        cur = conn.execute(
-            "SELECT session_id, project_dir, cwd, start_ts, end_ts, title, "
-            "first_prompt, last_prompt, user_msg_count, mtime, size "
-            "FROM sessions"
-        )
+        cur = conn.execute("SELECT * FROM sessions")
         rows = cur.fetchall()
     except sqlite3.OperationalError:
         return None
@@ -131,38 +162,47 @@ def load_sessions_from_index(db_path: Path = DB_PATH) -> list[Session] | None:
         conn.close()
     out: list[Session] = []
     for r in rows:
+        keys = set(r.keys())
         out.append(
             Session(
-                session_id=r[0],
-                project_dir=r[1] or "",
-                cwd=r[2] or "",
-                path="",
-                mtime=float(r[9] or 0.0),
-                size=int(r[10] or 0),
-                start_ts=r[3],
-                end_ts=r[4],
-                title=r[5],
-                first_prompt=r[6],
-                last_prompt=r[7],
-                user_msg_count=int(r[8] or 0),
+                session_id=r["session_id"],
+                source=r["source"] if "source" in keys and r["source"] else "claude",
+                project_dir=r["project_dir"] or "",
+                cwd=r["cwd"] or "",
+                path=r["path"] if "path" in keys and r["path"] else "",
+                mtime=float(r["mtime"] or 0.0),
+                size=int(r["size"] or 0),
+                start_ts=r["start_ts"],
+                end_ts=r["end_ts"],
+                title=r["title"],
+                first_prompt=r["first_prompt"],
+                last_prompt=r["last_prompt"],
+                user_msg_count=int(r["user_msg_count"] or 0),
             )
         )
     return out
 
 
-def list_sessions(projects_dir: Path = PROJECTS_DIR) -> list[Session]:
+def list_sessions(
+    projects_dir: Path = PROJECTS_DIR,
+    codex_dir: Path = CODEX_SESSIONS_DIR,
+) -> list[Session]:
     if DB_PATH.exists():
         rows = load_sessions_from_index(DB_PATH)
         if rows is not None:
             rows.sort(key=lambda s: s.mtime, reverse=True)
             return rows
-    if not projects_dir.exists():
-        return []
     out: list[Session] = []
-    for jsonl in projects_dir.rglob("*.jsonl"):
-        s = parse_session_file(jsonl)
-        if s is not None:
-            out.append(s)
+    if projects_dir.exists():
+        for jsonl in projects_dir.rglob("*.jsonl"):
+            s = parse_session_file(jsonl)
+            if s is not None:
+                out.append(s)
+    if codex_dir.exists():
+        for jsonl in codex_dir.rglob("*.jsonl"):
+            s = parse_codex_session_file(jsonl)
+            if s is not None:
+                out.append(s)
     out.sort(key=lambda s: s.mtime, reverse=True)
     return out
 
@@ -190,6 +230,36 @@ def iter_session_paths(projects_dir: Path = PROJECTS_DIR) -> Iterator[Path]:
     if not projects_dir.exists():
         return iter(())
     return projects_dir.rglob("*.jsonl")
+
+
+def iter_codex_session_paths(codex_dir: Path = CODEX_SESSIONS_DIR) -> Iterator[Path]:
+    if not codex_dir.exists():
+        return iter(())
+    return codex_dir.rglob("*.jsonl")
+
+
+def find_session_path(
+    session_id: str,
+    projects_dir: Path = PROJECTS_DIR,
+    codex_dir: Path = CODEX_SESSIONS_DIR,
+) -> tuple[str, Path] | None:
+    if DB_PATH.exists():
+        rows = load_sessions_from_index(DB_PATH) or []
+        for row in rows:
+            if row.session_id == session_id and row.path:
+                return row.source, Path(row.path)
+    if projects_dir.exists():
+        for jsonl in projects_dir.rglob("*.jsonl"):
+            if jsonl.stem == session_id:
+                return "claude", jsonl
+    if codex_dir.exists():
+        for jsonl in codex_dir.rglob("*.jsonl"):
+            if jsonl.stem == session_id:
+                return "codex", jsonl
+            sess = parse_codex_session_file(jsonl)
+            if sess and sess.session_id == session_id:
+                return "codex", jsonl
+    return None
 
 
 def session_display_title(s: Session, maxlen: int = 60) -> str:

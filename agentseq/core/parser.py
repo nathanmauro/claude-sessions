@@ -34,6 +34,20 @@ def extract_text(content) -> str:
     return ""
 
 
+def extract_codex_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        out = []
+        for c in content:
+            if not isinstance(c, dict):
+                continue
+            if c.get("type") in {"input_text", "output_text", "text"}:
+                out.append(c.get("text", ""))
+        return "\n".join(x for x in out if x)
+    return ""
+
+
 def is_real_user_prompt(text: str) -> bool:
     if not text:
         return False
@@ -45,6 +59,17 @@ def is_real_user_prompt(text: str) -> bool:
         or t.startswith("<system-reminder")
         or "Messages below were generated" in t
     ):
+        return False
+    return True
+
+
+def is_real_codex_user_prompt(text: str) -> bool:
+    if not is_real_user_prompt(text):
+        return False
+    t = text.strip()
+    if t.startswith("# AGENTS.md instructions for "):
+        return False
+    if t.startswith("<environment_context>"):
         return False
     return True
 
@@ -116,3 +141,68 @@ def parse_session(path: Path) -> Session | None:
     except OSError:
         return None
     return sess if sess.start_ts else None
+
+
+def parse_codex_session(path: Path) -> Session | None:
+    project_dir = str(path.parent)
+    sess = Session(
+        session_id=path.stem,
+        source="codex",
+        project_dir=project_dir,
+        cwd="",
+        path=path,
+    )
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    j = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                ts = parse_ts(j.get("timestamp"))
+                if ts:
+                    if sess.start_ts is None or ts < sess.start_ts:
+                        sess.start_ts = ts
+                    if sess.end_ts is None or ts > sess.end_ts:
+                        sess.end_ts = ts
+
+                payload = j.get("payload") or {}
+                record_type = j.get("type")
+                if record_type == "session_meta":
+                    sid = payload.get("id")
+                    if sid:
+                        sess.session_id = str(sid)
+                    if payload.get("cwd"):
+                        sess.cwd = payload["cwd"]
+                elif record_type == "turn_context" and payload.get("cwd") and not sess.cwd:
+                    sess.cwd = payload["cwd"]
+                elif record_type == "response_item" and payload.get("type") == "message":
+                    role = payload.get("role")
+                    if role not in {"user", "assistant"}:
+                        continue
+                    text = extract_codex_text(payload.get("content", ""))
+                    if not text:
+                        continue
+                    if role == "user":
+                        if not is_real_codex_user_prompt(text):
+                            continue
+                        sess.user_msg_count += 1
+                        snippet = text.strip()
+                        if not sess.first_prompt:
+                            sess.first_prompt = snippet
+                            sess.title = " ".join(snippet.split())[:80]
+                        sess.last_prompt = snippet
+                        if len(sess.user_prompts) < 50:
+                            sess.user_prompts.append(snippet)
+                    sess.all_messages.append((role, text))
+    except OSError:
+        return None
+    if not sess.cwd:
+        sess.cwd = path.parent.name
+    return sess if sess.start_ts else None
+
+
+def parse_any_session(path: Path, source: str = "claude") -> Session | None:
+    if source == "codex":
+        return parse_codex_session(path)
+    return parse_session(path)

@@ -2,10 +2,10 @@
 
 [![CI](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml/badge.svg)](https://github.com/nathanmauro/claude-sessions/actions/workflows/test.yml)
 ![Status](https://img.shields.io/badge/status-alpha-orange)
-![Version](https://img.shields.io/badge/version-0.7.0-blue)
+![Version](https://img.shields.io/badge/version-0.8.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-green)
 
-Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) sessions from four surfaces — terminal CLI, interactive TUI, macOS menubar, and a local web dashboard — all backed by a shared SQLite index of `~/.claude/projects/*.jsonl`.
+Browse, export, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs/claude-code/overview) and Codex Desktop sessions from four surfaces — terminal CLI, interactive TUI, macOS menubar, and a local web dashboard — all backed by a shared SQLite index of `~/.claude/projects/*.jsonl` and `~/.codex/sessions/**/*.jsonl`.
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="Dashboard — browse sessions, tasks, and token usage" width="820"><br>
@@ -31,7 +31,7 @@ Browse, resume, and visualize your [Claude Code](https://docs.claude.com/en/docs
 </table>
 
 
-> **Status:** alpha (0.7.0). Mac-first. Linux/Windows untested for the menubar surface; CLI, TUI, and dash should work cross-platform.
+> **Status:** alpha (0.8.0). Mac-first. Linux/Windows untested for the menubar surface; CLI, TUI, and dash should work cross-platform.
 
 ## Migrating from `agent-sessions` / `claude-sessions`
 
@@ -45,7 +45,7 @@ New users and new docs should prefer `agentseq` and `AGENTSEQ_*`.
 
 ## Why
 
-Claude Code already records every session as JSONL under `~/.claude/projects/`, but the built-in `claude --resume` picker only shows the current directory and doesn't surface running processes or token usage. `agentseq` indexes that data once and serves it from whichever interface fits the moment:
+Claude Code and Codex Desktop already record sessions as JSONL, but their native history surfaces do not give one local index for cross-tool search, export, running-process awareness, or token usage. `agentseq` indexes that data once and serves it from whichever interface fits the moment:
 
 | Surface | Best for | Command |
 | --- | --- | --- |
@@ -85,7 +85,7 @@ uv run agentseq ls
 ## Quick start
 
 ```bash
-# Build a SQLite index of every session under ~/.claude/projects/
+# Build a SQLite index of Claude and Codex sessions
 agentseq index
 
 # List the 50 most-recent sessions
@@ -115,14 +115,14 @@ agentseq ls --json --limit 200     # machine-readable
 agentseq running                   # active claude --resume processes
 agentseq show <sid>                # session metadata (--short / --json)
 agentseq pick                      # interactive fzf picker; prints chosen sid
-agentseq open <sid> [--prompt X]   # open new terminal window/pane in the recorded cwd
+agentseq open <sid> [--prompt X]   # open Claude session in a new terminal window/pane
 agentseq focus <sid>               # bring the terminal running this session to front
 agentseq smart <sid>               # focus if running, else open new
 agentseq index                     # refresh the SQLite index
 agentseq tui                       # launch Textual TUI (requires [tui] extra)
 ```
 
-Session IDs accept unique prefixes. `pick` requires `fzf` on PATH (`brew install fzf`) and chains directly into a resume with `--exec smart`:
+Session IDs accept unique prefixes. `open`, `focus`, `smart`, and `pick --exec` resume Claude sessions only; Codex rows are searchable and exportable. `pick` requires `fzf` on PATH (`brew install fzf`) and chains directly into a resume with `--exec smart`:
 
 ```bash
 # Print the chosen sid:
@@ -140,8 +140,8 @@ A [Textual](https://textual.textualize.io/) terminal app with four tabs:
 | --- | --- | --- |
 | **Agents** | `1` | Live agent monitor — polls `claude agents --json` every 3 s. Shows status, kind (interactive/background), session name, CWD, age, and PID. |
 | **Sessions** | `2` | Searchable session browser backed by the SQLite index. Type `/` to focus the search bar (SQLite FTS5 when available, fallback to substring match). |
-| **Combine** | `3` | Multi-select workspace — press `Space` on any session in Agents or Sessions to collect it here. Planned: export, skill drafting, and handoff summaries. |
-| **Jobs** | `4` | Export and generation job queue (coming soon). |
+| **Combine** | `3` | Multi-select workspace — press `Space` on any session in Agents or Sessions to collect it here. Press `e` to export selected Claude/Codex transcripts to Markdown. Planned: skill drafting and handoff summaries. |
+| **Jobs** | `4` | Export and generation job queue. |
 
 From any row: `Enter` opens a detail screen with metadata, full transcript, and task list. `r` resumes the session, `s` smart-attaches (focus if running, else resume), `m` toggles raw JSON in the detail view.
 
@@ -203,6 +203,7 @@ All config is environment variables, with sensible defaults:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `CLAUDE_PROJECTS_DIR` | `~/.claude/projects` | Where to read session JSONL from |
+| `AGENTSEQ_CODEX_SESSIONS_DIR` | `~/.codex/sessions` | Where to read Codex session JSONL from |
 | `AGENTSEQ_CACHE` | `~/.agentseq` | Cache dir for the SQLite index + caches |
 | `AGENTSEQ_HOST` | `127.0.0.1` | Dashboard bind host |
 | `AGENTSEQ_PORT` | `8765` | Dashboard port |

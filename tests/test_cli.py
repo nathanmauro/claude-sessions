@@ -92,6 +92,16 @@ def test_show_json_dumps_full_dict(capsys, one_session):
     assert payload["cwd"] == one_session.cwd
 
 
+def test_open_rejects_non_claude_session(monkeypatch, capsys):
+    sess = _make_session(source="codex")
+    monkeypatch.setattr(cli.sessions, "list_sessions", lambda: [sess])
+    rc = cli._cmd_open(
+        argparse.Namespace(session_id=sess.session_id, launcher=None, prompt="")
+    )
+    assert rc == 4
+    assert "only supports Claude sessions" in capsys.readouterr().err
+
+
 def test_show_unknown_session_returns_2(capsys, monkeypatch):
     monkeypatch.setattr(cli.sessions, "list_sessions", lambda: [])
     rc = cli._cmd_show(

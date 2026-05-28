@@ -61,7 +61,7 @@ export function GlobalSearch({ query, onPick }: Props) {
           onClick={() => onPick(r.session_id)}
         >
           <div className="hit-meta">
-            {r.date} · {r.cwd.split("/").pop()}
+            {r.date} · {r.source} · {r.cwd.split("/").pop()}
           </div>
           <div className="hit-title">{r.title}</div>
           <div

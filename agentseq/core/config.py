@@ -36,6 +36,13 @@ def _migrate_cache(home: Path | None = None) -> None:
 _migrate_cache()
 
 PROJECTS_DIR = Path(os.environ.get("CLAUDE_PROJECTS_DIR", Path.home() / ".claude" / "projects"))
+CODEX_SESSIONS_DIR = Path(
+    _env(
+        "AGENTSEQ_CODEX_SESSIONS_DIR",
+        "CODEX_SESSIONS_DIR",
+        default=str(Path.home() / ".codex" / "sessions"),
+    )
+)
 CACHE_DIR = Path(
     _env("AGENTSEQ_CACHE", "AGENT_SESSIONS_CACHE", "CLAUDE_SESSIONS_CACHE",
          default=str(Path.home() / ".agentseq"))

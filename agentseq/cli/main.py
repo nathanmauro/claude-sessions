@@ -54,13 +54,14 @@ def _cmd_ls(args: argparse.Namespace) -> int:
             out.append(d)
         print(json.dumps(out, indent=2))
         return 0
-    print(f"{'AGE':>5}  {'RUN':<3}  {'PROJECT':<24}  {'TITLE':<60}  SESSION_ID")
+    print(f"{'AGE':>5}  {'RUN':<3}  {'SRC':<6}  {'PROJECT':<24}  {'TITLE':<60}  SESSION_ID")
     for s in items[: args.limit]:
         age = age_from_iso(s.end_ts)
         run = "yes" if s.session_id in running_ids else ""
+        source = s.source[:6]
         proj = s.project_name[:24]
         title = sessions.session_display_title(s, maxlen=60)
-        print(f"{age:>5}  {run:<3}  {proj:<24}  {title:<60}  {s.session_id}")
+        print(f"{age:>5}  {run:<3}  {source:<6}  {proj:<24}  {title:<60}  {s.session_id}")
     return 0
 
 
@@ -85,6 +86,9 @@ def _cmd_open(args: argparse.Namespace) -> int:
     if sess is None:
         print(f"no session matched: {args.session_id}", file=sys.stderr)
         return 2
+    if sess.source != "claude":
+        print(f"open/resume only supports Claude sessions, got {sess.source}", file=sys.stderr)
+        return 4
     lnc = _get_launcher(args)
     ok, msg = lnc.open_new(sess.cwd, sess.session_id, extra=args.prompt or "")
     print(msg)
@@ -96,6 +100,9 @@ def _cmd_focus(args: argparse.Namespace) -> int:
     if sess is None:
         print(f"no session matched: {args.session_id}", file=sys.stderr)
         return 2
+    if sess.source != "claude":
+        print(f"focus only supports Claude sessions, got {sess.source}", file=sys.stderr)
+        return 4
     running = processes.find_running(sess.session_id)
     if running is None:
         print(f"session {sess.session_id[:8]} is not running", file=sys.stderr)
@@ -116,6 +123,9 @@ def _cmd_smart(args: argparse.Namespace) -> int:
     if sess is None:
         print(f"no session matched: {args.session_id}", file=sys.stderr)
         return 2
+    if sess.source != "claude":
+        print(f"smart only supports Claude sessions, got {sess.source}", file=sys.stderr)
+        return 4
     lnc = _get_launcher(args)
     running = processes.find_running(sess.session_id)
     if running and running.terminal_pid:
@@ -142,6 +152,7 @@ def _format_show_short(s: sessions.Session) -> str:
         f"{_C['dim']}{s.session_id}{_C['reset']}",
         "",
         f"{_C['dim']}cwd     {_C['reset']} {_home_relative(s.cwd)}",
+        f"{_C['dim']}source  {_C['reset']} {s.source}",
         f"{_C['dim']}started {_C['reset']} {s.start_ts or '-'} ({age_from_iso(s.start_ts)})",
         f"{_C['dim']}ended   {_C['reset']} {s.end_ts or '-'} ({age_from_iso(s.end_ts)})",
         f"{_C['dim']}messages{_C['reset']} {s.user_msg_count}",
@@ -177,6 +188,7 @@ def _format_show_short(s: sessions.Session) -> str:
 def _format_show_full(s: sessions.Session) -> str:
     parts = [
         f"session: {s.session_id}",
+        f"source:  {s.source}",
         f"project: {s.project_name}",
         f"cwd:     {s.cwd}",
         f"started: {s.start_ts or '-'} ({age_from_iso(s.start_ts)})",
@@ -237,8 +249,9 @@ def _cmd_pick(args: argparse.Namespace) -> int:
         cwd = f"{_C['dim']}{_fit_cwd(s.cwd)}{_C['reset']}"
         msg = f"{_C['dim']}{s.user_msg_count:>3}{_C['reset']}"
         sep = f"{_C['dim']}·{_C['reset']}"
+        source = f"{_C['dim']}{s.source[:1]}{_C['reset']}"
         title = sessions.session_display_title(s, maxlen=80)
-        return f"{s.session_id}\t{marker} {age}  {cwd}  {msg} {sep} {title}"
+        return f"{s.session_id}\t{marker} {age}  {source}  {cwd}  {msg} {sep} {title}"
 
     rows = [_row(s) for s in items]
 
@@ -370,8 +383,7 @@ def _cmd_search(args: argparse.Namespace) -> int:
 
 def _cmd_index(args: argparse.Namespace) -> int:
     from ..core import db
-    from ..core.config import PROJECTS_DIR
-    changed = db.index_all(PROJECTS_DIR)
+    changed = db.index_all()
     print(f"indexed: {len(changed)} sessions changed")
     if args.verbose:
         for sid in changed:
