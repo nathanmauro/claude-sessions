@@ -90,35 +90,42 @@ class CombinePane(Container):
         self.refresh_selected(set())
 
     def action_export(self):
+        from ...core.export import export_sessions_markdown
+
+        self._run_export("Export", export_sessions_markdown)
+
+    def _run_export(self, label: str, export_fn):
+        """Shared driver for the Combine export actions (export/skill/handoff)."""
         selected = self.app.selected_sessions
         if not selected:
             self.app.notify("No sessions selected", severity="warning")
             return
         try:
-            from ...core.export import export_sessions_markdown
             from .jobs import JobsPane
 
             selected_ids = sorted(selected)
-            path = export_sessions_markdown(selected_ids)
+            result = export_fn(selected_ids)
+            # Report what actually landed in the artifact, not the raw selection
+            # (some ids may be unresolvable/unparsable and excluded).
+            written_ids = [sid for sid in selected_ids if sid not in set(result.missing)]
             try:
                 jobs = self.app.query_one(JobsPane)
-                jobs.add_job("Export", selected_ids, str(path), status="Complete")
+                jobs.add_job(label, written_ids, str(result.path), status="Complete")
             except Exception:
                 pass
-            self.app.notify(f"Exported {len(selected_ids)} sessions to {path}")
+            note = f"{label}: {result.written} sessions → {result.path}"
+            if result.missing:
+                note += f"  ({len(result.missing)} unresolved)"
+            self.app.notify(note)
         except Exception as e:
-            self.app.notify(f"Export failed: {e}", severity="error")
+            self.app.notify(f"{label} failed: {e}", severity="error")
 
     def action_skill_draft(self):
-        selected = self.app.selected_sessions
-        if not selected:
-            self.app.notify("No sessions selected", severity="warning")
-            return
-        self.app.notify(f"Skill draft from {len(selected)} sessions — coming soon")
+        from ...core.export import export_skill_draft
+
+        self._run_export("Skill draft", export_skill_draft)
 
     def action_handoff(self):
-        selected = self.app.selected_sessions
-        if not selected:
-            self.app.notify("No sessions selected", severity="warning")
-            return
-        self.app.notify(f"Handoff summary for {len(selected)} sessions — coming soon")
+        from ...core.export import export_handoff_summary
+
+        self._run_export("Handoff summary", export_handoff_summary)

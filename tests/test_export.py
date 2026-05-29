@@ -3,12 +3,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from agentseq.core.export import export_sessions_markdown
+from agentseq.core.export import (
+    export_handoff_summary,
+    export_sessions_markdown,
+    export_skill_draft,
+)
 
 
 def _write_jsonl(path: Path, lines: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
+
+
+def _write_claude_session(projects_dir: Path, sid: str, cwd: str, lines: list[dict]) -> None:
+    """Write a minimal Claude transcript discoverable by ``find_session_path``."""
+    project_slug = "-" + cwd.strip("/").replace("/", "-")
+    _write_jsonl(projects_dir / project_slug / f"{sid}.jsonl", lines)
 
 
 def test_export_sessions_markdown_combines_claude_and_codex(tmp_path: Path):
@@ -60,17 +70,184 @@ def test_export_sessions_markdown_combines_claude_and_codex(tmp_path: Path):
         ],
     )
 
-    output = export_sessions_markdown(
+    result = export_sessions_markdown(
         ["claude-export-123", "codex-export-123"],
         output_dir=output_dir,
         projects_dir=projects_dir,
         codex_dir=codex_dir,
     )
 
-    text = output.read_text()
-    assert output.parent == output_dir
+    text = result.path.read_text()
+    assert result.path.parent == output_dir
+    assert result.written == 2
+    assert result.missing == []
     assert "Agentseq Session Export" in text
     assert "claude export question" in text
     assert "codex export answer" in text
     assert "Source: `claude`" in text
     assert "Source: `codex`" in text
+
+
+def test_export_handoff_summary_rolls_up_goal_open_tasks_and_last_activity(tmp_path: Path):
+    projects_dir = tmp_path / "claude-projects"
+    output_dir = tmp_path / "exports"
+
+    _write_claude_session(
+        projects_dir,
+        "handoff-1",
+        "/tmp/proj",
+        [
+            {
+                "type": "user",
+                "timestamp": "2026-05-20T09:00:00Z",
+                "message": {"content": "build the widget pipeline"},
+            },
+            {
+                "type": "assistant",
+                "timestamp": "2026-05-20T09:00:01Z",
+                "message": {
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "TaskCreate",
+                            "input": {
+                                "taskId": "1",
+                                "subject": "Wire the export button",
+                                "description": "still pending",
+                            },
+                        }
+                    ]
+                },
+            },
+            {
+                "type": "assistant",
+                "timestamp": "2026-05-20T09:00:02Z",
+                "message": {"content": [{"type": "text", "text": "left off mid-wiring"}]},
+            },
+        ],
+    )
+
+    result = export_handoff_summary(
+        ["handoff-1"], output_dir=output_dir, projects_dir=projects_dir
+    )
+
+    text = result.path.read_text()
+    assert "handoff" in result.path.name
+    assert result.written == 1
+    assert "Agentseq Handoff Summary" in text
+    assert "Open tasks across all sessions" in text
+    assert "Wire the export button" in text  # the open task surfaces in the roll-up
+    assert "build the widget pipeline" in text  # the goal
+    assert "left off mid-wiring" in text  # last activity
+
+
+def test_export_skill_draft_scaffolds_frontmatter_and_recurring_prompts(tmp_path: Path):
+    projects_dir = tmp_path / "claude-projects"
+    output_dir = tmp_path / "exports"
+
+    _write_claude_session(
+        projects_dir,
+        "skill-1",
+        "/tmp/scraper",
+        [
+            {
+                "type": "user",
+                "timestamp": "2026-05-21T10:00:00Z",
+                "message": {"content": "scrape the pricing table from the vendor site"},
+            },
+            {
+                "type": "assistant",
+                "timestamp": "2026-05-21T10:00:01Z",
+                "message": {"content": [{"type": "text", "text": "done"}]},
+            },
+        ],
+    )
+
+    result = export_skill_draft(["skill-1"], output_dir=output_dir, projects_dir=projects_dir)
+
+    text = result.path.read_text()
+    assert "skill" in result.path.name
+    # name derived from the project basename (scraper -> scraper-workflow)
+    assert "name: scraper-workflow" in text
+    assert "## When to use" in text
+    assert "## Recurring prompts (raw material)" in text
+    assert "scrape the pricing table from the vendor site" in text
+    assert "## Source sessions" in text
+
+
+def test_export_handoff_reports_missing_ids(tmp_path: Path):
+    projects_dir = tmp_path / "claude-projects"
+    output_dir = tmp_path / "exports"
+
+    _write_claude_session(
+        projects_dir,
+        "present-1",
+        "/tmp/proj",
+        [
+            {
+                "type": "user",
+                "timestamp": "2026-05-20T09:00:00Z",
+                "message": {"content": "hello"},
+            },
+            {
+                "type": "assistant",
+                "timestamp": "2026-05-20T09:00:01Z",
+                "message": {"content": [{"type": "text", "text": "hi"}]},
+            },
+        ],
+    )
+
+    result = export_handoff_summary(
+        ["present-1", "ghost-2"], output_dir=output_dir, projects_dir=projects_dir
+    )
+
+    text = result.path.read_text()
+    assert "Missing" in text
+    assert "ghost-2" in text
+    # the unresolved id is reported, not counted as written
+    assert result.written == 1
+    assert result.missing == ["ghost-2"]
+
+
+def test_export_handles_mixed_naive_and_aware_timestamps(tmp_path: Path):
+    """A selection mixing a Z-suffixed (aware) and an offset-less (naive)
+    timestamp must not raise when the shared sort runs."""
+    projects_dir = tmp_path / "claude-projects"
+    output_dir = tmp_path / "exports"
+
+    _write_claude_session(
+        projects_dir,
+        "aware-1",
+        "/tmp/proj",
+        [
+            {"type": "user", "timestamp": "2026-05-20T09:00:00Z", "message": {"content": "aware one"}},
+            {
+                "type": "assistant",
+                "timestamp": "2026-05-20T09:00:01Z",
+                "message": {"content": [{"type": "text", "text": "ok"}]},
+            },
+        ],
+    )
+    _write_claude_session(
+        projects_dir,
+        "naive-1",
+        "/tmp/proj",
+        [
+            {"type": "user", "timestamp": "2026-05-19T09:00:00", "message": {"content": "naive one"}},
+            {
+                "type": "assistant",
+                "timestamp": "2026-05-19T09:00:01",
+                "message": {"content": [{"type": "text", "text": "ok"}]},
+            },
+        ],
+    )
+
+    # Would raise TypeError (naive vs aware) without the _sort_key coercion.
+    result = export_sessions_markdown(
+        ["aware-1", "naive-1"], output_dir=output_dir, projects_dir=projects_dir
+    )
+
+    assert result.written == 2
+    text = result.path.read_text()
+    assert "aware one" in text
+    assert "naive one" in text

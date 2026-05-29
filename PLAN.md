@@ -52,20 +52,21 @@ Don't relitigate unless something has actually changed:
 The Combine tab collects multi-selected sessions but the action buttons are placeholders ("coming soon"). Wire up:
 
 - [x] **Export** (`e`) — concatenate selected session transcripts to a markdown file
-- [ ] **Skill draft** (`k`) — extract patterns from selected sessions into a skill skeleton
-- [ ] **Handoff summary** (`h`) — generate a context summary from selected sessions
+- [x] **Skill draft** (`S`) — scaffold a `SKILL.md` from the selection's recurring prompts + projects (deterministic skeleton with TODO slots; no LLM)
+- [x] **Handoff summary** (`h`) — condense the selection into a resume-context doc: goal, open tasks, last activity per session
 
+All three share `core/export.py` + the `_run_export` driver in `combine.py`.
 These are the TUI's differentiating feature over the other surfaces.
 
 ### TUI: test coverage
 
-No tests exist for the TUI yet. Add:
+- [x] Smoke test: app mounts, all 4 tabs render, agents table accepts data
+- [x] Detail screen: loads a session, shows transcript, toggles raw JSON
+- [x] Search: exercises FTS path and substring fallback
+- [x] Combine actions: skill-draft / handoff write artifacts; empty-selection is a safe warning
 
-- [ ] Smoke test: app mounts, all 4 tabs render, agents table accepts data
-- [ ] Detail screen: loads a session, shows transcript, toggles raw JSON
-- [ ] Search: exercises FTS path and substring fallback
-
-Use Textual's `run_test()` / pilot API — no real terminal needed.
+`tests/test_tui_{vim,screens,combine}.py` drive Textual's `run_test()` / pilot
+(module-skipped when textual is absent, so a base install stays CI-green).
 
 ### Dash polish
 
