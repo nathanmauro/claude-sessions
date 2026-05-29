@@ -5,6 +5,8 @@ from textual.binding import Binding
 from textual.containers import Container
 from textual.widgets import DataTable, Static
 
+from ..vim import VimDataTable
+
 
 class JobsPane(Container):
     BINDINGS = [
@@ -15,11 +17,11 @@ class JobsPane(Container):
 
     def compose(self):
         yield Static("[b]Jobs & Exports[/b]", classes="section-header")
-        table = DataTable(id="jobs-table")
+        table = VimDataTable(id="jobs-table")
         table.cursor_type = "row"
         table.zebra_stripes = True
         yield table
-        yield Static("[dim]No jobs yet. Use [b]e[/b]xport, [b]k[/b] skill draft, or [b]h[/b] handoff from the Combine tab.[/dim]",
+        yield Static("[dim]No jobs yet. Use [b]e[/b]xport, [b]S[/b] skill draft, or [b]h[/b] handoff from the Combine tab.[/dim]",
                      id="jobs-empty", classes="empty-state")
 
     def on_mount(self):

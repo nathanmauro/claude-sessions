@@ -10,6 +10,8 @@ from textual.containers import Vertical
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, RichLog, Static
 
+from ..vim import VimDataTable, VimRichLog
+
 
 class DetailScreen(Screen):
     BINDINGS = [
@@ -31,8 +33,8 @@ class DetailScreen(Screen):
         yield Static(f"Loading session {self.session_id[:8]}…", id="detail-loading")
         with Vertical(id="detail-content"):
             yield Static("", id="detail-meta", classes="detail-meta")
-            yield RichLog(id="detail-transcript", classes="detail-transcript", wrap=True, highlight=True, markup=True)
-            yield DataTable(id="detail-tasks", classes="detail-tasks")
+            yield VimRichLog(id="detail-transcript", classes="detail-transcript", wrap=True, highlight=True, markup=True)
+            yield VimDataTable(id="detail-tasks", classes="detail-tasks")
         yield Footer()
 
     def on_mount(self):
@@ -40,6 +42,9 @@ class DetailScreen(Screen):
         tasks_table = self.query_one("#detail-tasks", DataTable)
         tasks_table.add_columns("Status", "Subject", "Description")
         tasks_table.cursor_type = "row"
+        # Focus the transcript so vim scrolling (j/k/gg/G/ctrl+d/ctrl+u) works
+        # immediately. Tab / shift+tab cycle focus to the tasks table.
+        self.query_one("#detail-transcript", RichLog).focus()
         self.load_session()
 
     @work(thread=True)

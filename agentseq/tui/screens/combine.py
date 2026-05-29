@@ -7,12 +7,14 @@ from textual.binding import Binding
 from textual.containers import Container
 from textual.widgets import DataTable, Static
 
+from ..vim import VimDataTable
+
 
 class CombinePane(Container):
     BINDINGS = [
         Binding("x", "remove_selected", "Remove"),
         Binding("e", "export", "Export"),
-        Binding("k", "skill_draft", "Skill Draft"),
+        Binding("S", "skill_draft", "Skill Draft"),
         Binding("h", "handoff", "Handoff Summary"),
         Binding("c", "clear_all", "Clear All"),
     ]
@@ -20,7 +22,7 @@ class CombinePane(Container):
     def compose(self):
         yield Static("[b]Combine Workspace[/b]  (Space to select sessions in other tabs)", classes="section-header")
         yield Static("No sessions selected", id="combine-stats", classes="combine-stats")
-        table = DataTable(id="combine-table", classes="combine-list")
+        table = VimDataTable(id="combine-table", classes="combine-list")
         table.cursor_type = "row"
         table.zebra_stripes = True
         yield table
