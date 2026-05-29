@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import NamedTuple
 from unittest.mock import patch
 
 import pytest
@@ -42,16 +43,19 @@ def _write_claude_session(projects_dir: Path, sid: str, cwd: str) -> Path:
     return path
 
 
-def _run_pane_action(tmp_path: Path, action_name: str, glob: str) -> list[Path]:
-    """Mount the app, select one fixture session, fire a Combine action.
+class PaneActionResult(NamedTuple):
+    files: list[Path]  # artifacts written under the patched exports dir
+    job_rows: int  # row count in the Jobs table after the action
 
-    Returns the artifacts written under the patched exports dir.
-    """
+
+def _run_pane_action(tmp_path: Path, action_name: str, glob: str) -> PaneActionResult:
+    """Mount the app, select one fixture session, fire a Combine action."""
     projects_dir = tmp_path / "claude-projects"
     exports_root = tmp_path / "cache"
     fixture = _write_claude_session(projects_dir, "combine-1", "/tmp/proj")
 
-    written: list[Path] = []
+    files: list[Path] = []
+    job_rows = [0]
     notes: list[tuple] = []
 
     async def run():
@@ -75,30 +79,28 @@ def _run_pane_action(tmp_path: Path, action_name: str, glob: str) -> list[Path]:
 
                 exports_dir = exports_root / "exports"
                 if exports_dir.exists():
-                    written.extend(exports_dir.glob(glob))
+                    files.extend(exports_dir.glob(glob))
                 # the action also logs a completed Jobs row
                 jobs_table = app.query_one(JobsPane).query_one("#jobs-table")
-                written.append(jobs_table.row_count)  # type: ignore[arg-type]
+                job_rows[0] = jobs_table.row_count
 
     asyncio.run(run())
     assert not any("failed" in m for m, _ in notes), f"action errored: {notes}"
-    return written
+    return PaneActionResult(files=files, job_rows=job_rows[0])
 
 
 def test_skill_draft_action_writes_artifact(tmp_path: Path):
-    results = _run_pane_action(tmp_path, "action_skill_draft", "agentseq-skill-*.md")
-    files = [r for r in results if isinstance(r, Path)]
-    job_rows = [r for r in results if isinstance(r, int)]
-    assert len(files) == 1
-    assert "draft a skill from these sessions" in files[0].read_text()
-    assert job_rows and job_rows[0] >= 1
+    result = _run_pane_action(tmp_path, "action_skill_draft", "agentseq-skill-*.md")
+    assert len(result.files) == 1
+    assert "draft a skill from these sessions" in result.files[0].read_text()
+    assert result.job_rows >= 1
 
 
 def test_handoff_action_writes_artifact(tmp_path: Path):
-    results = _run_pane_action(tmp_path, "action_handoff", "agentseq-handoff-*.md")
-    files = [r for r in results if isinstance(r, Path)]
-    assert len(files) == 1
-    assert "Agentseq Handoff Summary" in files[0].read_text()
+    result = _run_pane_action(tmp_path, "action_handoff", "agentseq-handoff-*.md")
+    assert len(result.files) == 1
+    assert "Agentseq Handoff Summary" in result.files[0].read_text()
+    assert result.job_rows >= 1
 
 
 def test_combine_action_no_selection_is_a_safe_warning():

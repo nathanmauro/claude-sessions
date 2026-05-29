@@ -104,13 +104,19 @@ class CombinePane(Container):
             from .jobs import JobsPane
 
             selected_ids = sorted(selected)
-            path = export_fn(selected_ids)
+            result = export_fn(selected_ids)
+            # Report what actually landed in the artifact, not the raw selection
+            # (some ids may be unresolvable/unparsable and excluded).
+            written_ids = [sid for sid in selected_ids if sid not in set(result.missing)]
             try:
                 jobs = self.app.query_one(JobsPane)
-                jobs.add_job(label, selected_ids, str(path), status="Complete")
+                jobs.add_job(label, written_ids, str(result.path), status="Complete")
             except Exception:
                 pass
-            self.app.notify(f"{label}: {len(selected_ids)} sessions → {path}")
+            note = f"{label}: {result.written} sessions → {result.path}"
+            if result.missing:
+                note += f"  ({len(result.missing)} unresolved)"
+            self.app.notify(note)
         except Exception as e:
             self.app.notify(f"{label} failed: {e}", severity="error")
 

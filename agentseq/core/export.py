@@ -4,11 +4,36 @@ import datetime as dt
 import re
 from collections import Counter
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from .config import CACHE_DIR, CODEX_SESSIONS_DIR, PROJECTS_DIR
 from .parser import parse_any_session
 from .sessions import find_session_path
+
+
+@dataclass
+class ExportResult:
+    """Outcome of an export: where it landed and how much it actually wrote.
+
+    ``written`` is the count of sessions that resolved + parsed into the
+    artifact (``missing`` were selected but couldn't be found/parsed). The TUI
+    reports ``written`` so the toast/Jobs row never overcount a partial export.
+    """
+
+    path: Path
+    written: int
+    missing: list[str]
+
+
+def _session_title(session, prompt_len: int = 80) -> str:
+    return session.title or session.first_prompt[:prompt_len] or session.session_id
+
+
+def _started_ended(session) -> tuple[str, str]:
+    started = session.start_ts.isoformat() if session.start_ts else "-"
+    ended = session.end_ts.isoformat() if session.end_ts else "-"
+    return started, ended
 
 
 def _render_message(role: str, text: str) -> str:
@@ -17,9 +42,8 @@ def _render_message(role: str, text: str) -> str:
 
 
 def _render_session(session) -> str:
-    title = session.title or session.first_prompt[:80] or session.session_id
-    started = session.start_ts.isoformat() if session.start_ts else "-"
-    ended = session.end_ts.isoformat() if session.end_ts else "-"
+    title = _session_title(session)
+    started, ended = _started_ended(session)
     parts = [
         f"## {title}",
         "",
@@ -70,8 +94,21 @@ def _parse_selected(
     if not parsed:
         raise ValueError("no selected sessions could be parsed")
 
-    parsed.sort(key=lambda s: s.start_ts or dt.datetime.min.replace(tzinfo=dt.UTC))
+    parsed.sort(key=_sort_key)
     return parsed, missing
+
+
+def _sort_key(session) -> dt.datetime:
+    """Oldest-first sort key that never compares naive against aware.
+
+    ``parse_ts`` yields an aware datetime for ``Z``/offset timestamps but a
+    naive one for offset-less timestamps; sorting a mix would raise
+    ``TypeError``. Coerce naive values to UTC (and ``None`` to a UTC sentinel).
+    """
+    ts = session.start_ts
+    if ts is None:
+        return dt.datetime.min.replace(tzinfo=dt.UTC)
+    return ts if ts.tzinfo else ts.replace(tzinfo=dt.UTC)
 
 
 def _write_markdown(lines: list[str], kind: str, count: int, output_dir: Path | None) -> Path:
@@ -108,7 +145,7 @@ def export_sessions_markdown(
     output_dir: Path | None = None,
     projects_dir: Path = PROJECTS_DIR,
     codex_dir: Path = CODEX_SESSIONS_DIR,
-) -> Path:
+) -> ExportResult:
     parsed, missing = _parse_selected(session_ids, projects_dir, codex_dir)
 
     lines = [
@@ -117,13 +154,13 @@ def export_sessions_markdown(
         f"Generated: {dt.datetime.now(dt.UTC).isoformat()}",
         f"Sessions: {len(parsed)}",
     ]
-    if missing:
-        lines.extend(["", "Missing:", *[f"- `{sid}`" for sid in missing]])
+    lines.extend(_missing_block(missing))
     lines.append("")
     for session in parsed:
         lines.append(_render_session(session))
 
-    return _write_markdown(lines, "export", len(parsed), output_dir)
+    path = _write_markdown(lines, "export", len(parsed), output_dir)
+    return ExportResult(path=path, written=len(parsed), missing=missing)
 
 
 def export_handoff_summary(
@@ -131,7 +168,7 @@ def export_handoff_summary(
     output_dir: Path | None = None,
     projects_dir: Path = PROJECTS_DIR,
     codex_dir: Path = CODEX_SESSIONS_DIR,
-) -> Path:
+) -> ExportResult:
     """Condense the selected sessions into a resume-context handoff doc.
 
     Unlike the full export (every message), this is the "where we left off"
@@ -171,9 +208,8 @@ def export_handoff_summary(
 
     lines.extend(["", "## Sessions", ""])
     for session in parsed:
-        title = session.title or session.first_prompt[:80] or session.session_id
-        started = session.start_ts.isoformat() if session.start_ts else "-"
-        ended = session.end_ts.isoformat() if session.end_ts else "-"
+        title = _session_title(session)
+        started, ended = _started_ended(session)
         lines.extend(
             [
                 f"### {title}",
@@ -196,7 +232,8 @@ def export_handoff_summary(
         last = _last_assistant(session)
         lines.extend([f"**Last activity:** {_collapse(last) or '—'}", ""])
 
-    return _write_markdown(lines, "handoff", len(parsed), output_dir)
+    path = _write_markdown(lines, "handoff", len(parsed), output_dir)
+    return ExportResult(path=path, written=len(parsed), missing=missing)
 
 
 def export_skill_draft(
@@ -204,7 +241,7 @@ def export_skill_draft(
     output_dir: Path | None = None,
     projects_dir: Path = PROJECTS_DIR,
     codex_dir: Path = CODEX_SESSIONS_DIR,
-) -> Path:
+) -> ExportResult:
     """Scaffold a Claude Code skill from patterns across the selected sessions.
 
     Deterministic: it cannot infer intent, so it seeds a ``SKILL.md`` skeleton
@@ -270,10 +307,11 @@ def export_skill_draft(
 
     lines.extend(["", "## Source sessions", ""])
     for session in parsed:
-        title = session.title or session.first_prompt[:60] or session.session_id
+        title = _session_title(session, prompt_len=60)
         lines.append(
             f"- `{session.source}:{session.session_id[:8]}` — {_collapse(title, 80)} "
             f"(`{session.cwd}`)"
         )
 
-    return _write_markdown(lines, "skill", len(parsed), output_dir)
+    path = _write_markdown(lines, "skill", len(parsed), output_dir)
+    return ExportResult(path=path, written=len(parsed), missing=missing)
