@@ -104,10 +104,7 @@ def _dashboard_payload(qs) -> dict:
 
     sessions_out: list[dict] = []
     for s in range_sessions:
-        d = s.model_dump(
-            mode="json",
-            exclude={"path", "all_messages", "user_prompts"},
-        )
+        d = s.to_dict(exclude={"path", "all_messages", "user_prompts"})
         d["incomplete_count"] = len(s.incomplete_tasks)
         d["completed_count"] = len(s.completed_tasks)
         sessions_out.append(d)
@@ -121,9 +118,9 @@ def _dashboard_payload(qs) -> dict:
         "sessions": sessions_out,
         "projects": projects,
         "project_index": project_index,
-        "today_usage": today_usage.model_dump(),
-        "week_usage": week_usage.model_dump(),
-        "range_usage": range_usage.model_dump(),
+        "today_usage": today_usage.to_dict(),
+        "week_usage": week_usage.to_dict(),
+        "range_usage": range_usage.to_dict(),
         "total_open": total_open,
         "known_sids": known_sids,
     }
@@ -151,7 +148,7 @@ async def api_search(q: str = "") -> JSONResponse:
     q = q.strip()
     if not q:
         return JSONResponse([])
-    return JSONResponse([r.model_dump() for r in db.search(q)])
+    return JSONResponse([r.to_dict() for r in db.search(q)])
 
 
 @app.get("/api/subscription-usage")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import json
 from pathlib import Path
 
@@ -78,3 +79,39 @@ def test_index_all_indexes_claude_and_codex_sources(tmp_path: Path, monkeypatch)
 
     assert set(changed) == {"claude-123", "codex-123"}
     assert {hit.source for hit in hits} == {"claude", "codex"}
+
+
+def test_load_sessions_hydrates_real_datetimes_and_roundtrips(tmp_path: Path, monkeypatch):
+    """db.load_sessions() must return core.models.Session with start_ts/end_ts as
+    real datetimes — the SQLite-TEXT -> datetime coercion pydantic used to give
+    for free — and Session.to_dict() must round-trip them to the ISO/Z string.
+    """
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "index.db")
+
+    claude_dir = tmp_path / "claude-projects"
+    codex_dir = tmp_path / "codex-sessions"
+    codex_dir.mkdir(parents=True, exist_ok=True)
+    _write_jsonl(
+        claude_dir / "-Users-nathan-Developer-proj-foo" / "claude-rt.jsonl",
+        [
+            {"type": "user", "timestamp": "2026-05-18T10:00:00Z",
+             "message": {"content": "hello"}},
+            {"type": "assistant", "timestamp": "2026-05-18T10:05:00Z",
+             "message": {"content": "hi back"}},
+        ],
+    )
+
+    db.init_db()
+    db.index_all(claude_dir, codex_dir)
+    sessions = db.load_sessions()
+
+    assert len(sessions) == 1
+    s = sessions[0]
+    # The headline coercion: read back from SQLite TEXT as real datetimes.
+    assert isinstance(s.start_ts, dt.datetime)
+    assert isinstance(s.end_ts, dt.datetime)
+    assert s.start_ts == dt.datetime(2026, 5, 18, 10, 0, tzinfo=dt.UTC)
+    # to_dict() round-trips back to the Z-suffixed ISO string and is JSON-safe.
+    d = s.to_dict()
+    assert d["start_ts"] == "2026-05-18T10:00:00Z"
+    json.dumps(d)

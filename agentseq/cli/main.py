@@ -362,7 +362,7 @@ def _cmd_search(args: argparse.Namespace) -> int:
         return 0
 
     if args.json:
-        print(json.dumps([r.model_dump() for r in results], indent=2))
+        print(json.dumps([r.to_dict() for r in results], indent=2))
         return 0
 
     strip_tags = re.compile(r"</?b>")

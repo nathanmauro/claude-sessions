@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 
 from ..core.config import USAGE_FILE
-from ..core.models import SubscriptionUsage
+from .models import SubscriptionUsage
 
 
 def load_subscription_usage() -> SubscriptionUsage | None:

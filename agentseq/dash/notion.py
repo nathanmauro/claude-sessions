@@ -16,7 +16,7 @@ from ..core.config import (
     NOTION_DB_ID,
     NOTION_VERSION,
 )
-from ..core.models import NotionTodo, NotionTodosResult
+from .models import NotionTodo, NotionTodosResult
 
 
 def get_token() -> str | None:
