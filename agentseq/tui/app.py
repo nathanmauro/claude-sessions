@@ -24,9 +24,13 @@ class AgentSeqApp(App):
         Binding("2", "switch_tab('sessions')", "Sessions", priority=True),
         Binding("3", "switch_tab('combine')", "Combine", priority=True),
         Binding("4", "switch_tab('jobs')", "Jobs", priority=True),
+        Binding("left_square_bracket", "prev_tab", "Prev Tab", show=False),
+        Binding("right_square_bracket", "next_tab", "Next Tab", show=False),
         Binding("q", "quit", "Quit"),
         Binding("question_mark", "show_help", "Help"),
     ]
+
+    TAB_IDS = ["agents", "sessions", "combine", "jobs"]
 
     selected_sessions: reactive[set[str]] = reactive(set, always_update=True)
     live_agents: reactive[list[LiveAgent]] = reactive(list, always_update=True)
@@ -65,10 +69,26 @@ class AgentSeqApp(App):
         tabs = self.query_one(TabbedContent)
         tabs.active = tab_id
 
+    def _cycle_tab(self, delta: int) -> None:
+        tabs = self.query_one(TabbedContent)
+        try:
+            idx = self.TAB_IDS.index(tabs.active)
+        except ValueError:
+            idx = 0
+        tabs.active = self.TAB_IDS[(idx + delta) % len(self.TAB_IDS)]
+
+    def action_prev_tab(self) -> None:
+        self._cycle_tab(-1)
+
+    def action_next_tab(self) -> None:
+        self._cycle_tab(1)
+
     def action_show_help(self) -> None:
         self.notify(
-            "? = help  1-4 = tabs  Enter = detail  r = resume  "
-            "s = smart-attach  Space = select  / = search  q = quit"
+            "? = help  1-4 = tabs  [ ] = prev/next tab  "
+            "j/k = move  gg/G = top/bottom  ctrl+d/ctrl+u = half-page  "
+            "Enter = detail  r = resume  s = smart-attach  "
+            "Space = select  / = search  q = quit"
         )
 
     def toggle_selection(self, session_id: str) -> None:

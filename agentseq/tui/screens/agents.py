@@ -10,6 +10,7 @@ from textual.containers import Container
 from textual.widgets import DataTable, Static
 
 from ..live import LiveAgent
+from ..vim import VimDataTable
 
 
 class AgentsPane(Container):
@@ -24,7 +25,7 @@ class AgentsPane(Container):
 
     def compose(self):
         yield Static("[b]Live Agents[/b]  (auto-refreshes every 3s)", classes="section-header")
-        table = DataTable(id="agents-table")
+        table = VimDataTable(id="agents-table")
         table.cursor_type = "row"
         table.zebra_stripes = True
         yield table

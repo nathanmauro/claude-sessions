@@ -9,6 +9,7 @@ from textual.containers import Container, Horizontal
 from textual.widgets import DataTable, Input
 
 from ...core.sessions import age_from_iso, list_sessions, session_display_title
+from ..vim import VimDataTable
 
 
 class SessionBrowserPane(Container):
@@ -30,7 +31,7 @@ class SessionBrowserPane(Container):
     def compose(self):
         with Horizontal(classes="search-bar"):
             yield Input(placeholder="Search sessions (/ to focus)…", id="search-input")
-        table = DataTable(id="sessions-table")
+        table = VimDataTable(id="sessions-table")
         table.cursor_type = "row"
         table.zebra_stripes = True
         yield table
